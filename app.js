@@ -214,7 +214,13 @@ $('makePlan').onclick=()=>{
   keepAwake();
   if(st!==raw)toast(`Start auf ${hhmm(st)} verschoben (Ruhezeit).`);
 };
-$('newBake').onclick=()=>{if(confirm('Aktuellen Ablauf beenden?')){plan=null;LS.del('sb_plan');render()}};
+$('newBake').onclick=async()=>{
+  if(!confirm('Plan wirklich stoppen? Der Ablauf und alle Erinnerungen werden gelöscht.'))return;
+  const wasCk=plan&&plan.slug.startsWith('ck-');plan=null;LS.del('sb_plan');pushLast='';
+  if(wasCk){ck.active=null;saveCk()}
+  render();toast('Plan gestoppt und gelöscht.');
+  try{const r=await navigator.serviceWorker?.ready;(await r?.getNotifications())?.forEach(n=>n.close())}catch{} // Meldungen wegräumen, ohne den Stopp zu blockieren
+};
 const hhmm=t=>{const d=new Date(t),n=new Date(),same=d.toDateString()===n.toDateString();
   return (same?'':d.toLocaleDateString('de-DE',{weekday:'short'})+' ')+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})};
 const dur=m=>m>=60?`${Math.floor(m/60)} Std${m%60?' '+m%60+' Min':''}`:`${m} Min`;
@@ -357,7 +363,7 @@ function parseCk(txt){
   let u;try{u=new URL(m[0])}catch{return null}
   if(!/(^|\.)chefkoch\.de$/.test(u.hostname))return null;
   let title=txt.replace(m[0],'').split('\n').map(x=>x.trim()).find(Boolean)||'';
-  title=title.replace(/^[„"“]+|[“”"]+$/g,'').slice(0,80);
+  title=title.replace(/^[^:]*:\s*/,'').replace(/^[„"“]+|[“”"]+$/g,'').slice(0,80); // alles vor dem ersten Doppelpunkt samt Doppelpunkt entfernen
   if(!title){try{title=decodeURIComponent((u.pathname.split('/').filter(Boolean).pop()||'').replace(/\.html$/,'')).replace(/-/g,' ').trim()}catch{}}
   if(!title||/^\d+$/.test(title))title='Chefkoch-Rezept';
   return {url:`https://${u.hostname}${u.pathname}`,title};
@@ -416,6 +422,12 @@ $('ckPaste').onclick=async()=>{
   try{const t=await navigator.clipboard.readText();if(!t)return toast('Die Zwischenablage ist leer.');$('ckUrl').value=t;addFromInput()}
   catch{toast('Zugriff auf die Zwischenablage nicht erlaubt. Füge den Link bitte ins Feld ein.')}
 };
+{ // Hinweis passend zum Gerät: Teilen-Menü gibt es nur bei installierten Android-Apps
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent),app=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  $('ckHint').innerHTML=ios?'Auf dem iPhone können Web-Apps nicht im Teilen-Menü erscheinen. Kopiere in Chefkoch den Link (Teilen, Link kopieren) und tippe hier auf den Einfügen-Knopf neben dem Feld. Mehrere Links gehen auch.'
+    :app?'Tippe in Chefkoch beim Rezept auf <b>Teilen</b> und wähle diese App. Erscheint sie nicht, deinstalliere die App einmal und installiere sie neu (Menü, „App installieren“). Alternativ: Link kopieren und den Einfügen-Knopf nutzen.'
+    :'Das Teilen-Menü zeigt diese App nur, wenn sie richtig installiert ist (Chrome-Menü, „App installieren“, nicht nur „Zum Startbildschirm“). Sonst: Link kopieren und den Einfügen-Knopf nutzen.';
+}
 // Vom Teilen-Menü (Android, installierte App): Link kommt per Adresse an
 (function handleShare(){
   const p=new URLSearchParams(location.search);if(!['url','text','title'].some(k=>p.get(k)))return;

@@ -8,10 +8,24 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sauerteig">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Sauerteig-Helfer: Brotplan mit Erinnerungen, Rechner, Coach und deinem eigenen Starter.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sauerteig Helfer">
+<meta property="og:title" content="Sauerteig Helfer">
+<meta property="og:description" content="Brotplan mit Erinnerungen, Rechner, Coach und deinem eigenen Starter.">
+<meta property="og:url" content="https://gamekhinte.github.io/sauerteig/">
+<meta property="og:image" content="https://gamekhinte.github.io/sauerteig/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:locale" content="de_DE">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Sauerteig Helfer">
+<meta name="twitter:description" content="Brotplan mit Erinnerungen, Rechner, Coach und deinem eigenen Starter.">
+<meta name="twitter:image" content="https://gamekhinte.github.io/sauerteig/icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css?v=12">
+<link rel="stylesheet" href="styles.css?v=15">
 <title>Sauerteig Helfer</title>
 </head>
 <body>
@@ -28,6 +42,7 @@
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
   <symbol id="i-clip" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h6"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -82,7 +97,7 @@
       <div id="planIngr" class="ingr"></div>
       <p id="planFit" class="muted" style="margin-top:0"></p>
       <p id="planEta" class="muted" style="margin-top:0"></p>
-      <button class="btn ghost" id="newBake">NEUES BROT STARTEN</button>
+      <button class="btn stop" id="newBake"><svg class="ic"><use href="#i-stop"/></svg> STOPPEN UND ALLES LÖSCHEN</button>
     </div>
     <div class="card">
       <h2>ERINNERUNGEN</h2>
@@ -198,7 +213,7 @@
 <section id="tab-ck" class="tab">
   <div class="card">
     <h2>MEINE REZEPTE</h2>
-    <p class="muted" style="margin-top:0">Am einfachsten: In Chefkoch beim Rezept auf <b>Teilen</b> tippen und diese App auswählen (Android, wenn die App installiert ist). Sonst Link kopieren und mit dem Clipboard-Knopf einfügen. Mehrere Links auf einmal gehen auch.</p>
+    <p class="muted" style="margin-top:0" id="ckHint"></p>
     <div class="row">
       <input id="ckUrl" placeholder="Rezept-Link(s) einfügen" autocomplete="off">
       <button class="btn ghost sq" id="ckPaste" aria-label="Aus Zwischenablage einfügen"><svg class="ic"><use href="#i-clip"/></svg></button>
@@ -228,7 +243,7 @@
   <button data-tab="pet"><svg class="ic"><use href="#i-jar"/></svg>STARTER</button>
   <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>CHEFKOCH</button>
 </nav>
-<script src="extra-breads.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="extra-breads.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

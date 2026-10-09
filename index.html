@@ -25,7 +25,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=16">
 <title>Sauerteig Helfer</title>
 </head>
 <body>
@@ -94,6 +94,7 @@
   <div id="plan" hidden>
     <div class="card">
       <h2 id="planTitle"></h2>
+      <img id="planImg" class="recimg" alt="" hidden referrerpolicy="no-referrer" loading="lazy">
       <div id="planIngr" class="ingr"></div>
       <p id="planFit" class="muted" style="margin-top:0"></p>
       <p id="planEta" class="muted" style="margin-top:0"></p>
@@ -115,10 +116,9 @@
     <label>Brotsorte<select id="cBread"></select></label>
     <div class="row">
       <label>Personen<input type="number" id="cPersons" min="1" max="50" inputmode="numeric" placeholder="z. B. 4"></label>
-      <label>oder Menge in g
+      <label>oder Mehl in g
         <input type="number" id="cAmount" min="1" inputmode="decimal" placeholder="z. B. 80"></label>
     </div>
-    <label>…von dieser Zutat<select id="cIngr"></select></label>
     <div id="cResult" class="ingr"></div>
     <p class="muted">Der Starter enthält je zur Hälfte Mehl und Wasser. Das ist in den Mengen unten schon eingerechnet, nichts extra abziehen.</p>
   </div>
@@ -159,6 +159,7 @@
 <section id="tab-pet" class="tab">
   <div id="recCard" class="card" hidden>
     <h2>AKTUELLES REZEPT</h2>
+    <img id="recImg" class="recimg" alt="" hidden referrerpolicy="no-referrer" loading="lazy">
     <p id="recName" class="pname" style="font-size:18px;text-align:left;margin-bottom:4px"></p>
     <p id="recInfo" class="muted" style="margin-top:0"></p>
     <p id="recStarter" class="muted"></p>
@@ -243,7 +244,7 @@
   <button data-tab="pet"><svg class="ic"><use href="#i-jar"/></svg>STARTER</button>
   <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>CHEFKOCH</button>
 </nav>
-<script src="extra-breads.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="extra-breads.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

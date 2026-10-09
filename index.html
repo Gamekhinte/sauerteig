@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 <title>Sauerteig Helfer</title>
 </head>
 <body>
@@ -24,6 +24,7 @@
   <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-jar" viewBox="0 0 24 24"><path d="M8 3h8v3H8z"/><path d="M6 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M6 13h12"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -121,6 +122,25 @@
   </div>
 </section>
 
+<section id="tab-pet" class="tab">
+  <div class="card petcard">
+    <div id="petArt"></div>
+    <div id="petName" class="pname"></div>
+    <p id="petLvl" class="muted" style="margin:2px 0 6px"></p>
+    <div class="xp"><i id="petXp"></i></div>
+    <p id="petMood" class="muted"></p>
+    <button class="btn" id="petFeed">HABE GEFÜTTERT</button>
+    <p class="muted" style="margin-bottom:0">Tippe hier, wenn du deinen echten Starter gefüttert hast. Fütterst du regelmäßig und backst Brote, sammelt er Erfahrung und schaltet neues Zubehör frei.</p>
+  </div>
+  <div class="card">
+    <h2>ANPASSEN</h2>
+    <label>Name<input id="petIn" maxlength="16" placeholder="Wie heißt dein Starter?" autocomplete="off"></label>
+    <p class="lbl">Farbe</p><div class="chips" id="pCol"></div>
+    <p class="lbl">Augen</p><div class="chips" id="pEye"></div>
+    <p class="lbl">Zubehör</p><div class="chips" id="pAcc"></div>
+  </div>
+</section>
+
 <section id="tab-ck" class="tab">
   <div class="card">
     <h2>CHEFKOCH-PROFIL</h2>
@@ -145,9 +165,10 @@
   <button data-tab="bake" class="on"><svg class="ic"><use href="#i-bread"/></svg>BACKEN</button>
   <button data-tab="calc"><svg class="ic"><use href="#i-calc"/></svg>RECHNER</button>
   <button data-tab="chat"><svg class="ic"><use href="#i-chat"/></svg>COACH</button>
+  <button data-tab="pet"><svg class="ic"><use href="#i-jar"/></svg>STARTER</button>
   <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>CHEFKOCH</button>
 </nav>
-<script src="extra-breads.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="extra-breads.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

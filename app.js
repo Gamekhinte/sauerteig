@@ -59,7 +59,7 @@ function ingredients(b,flour){
   (b.extras||[]).forEach(e=>L.push({n:e.name,g:flour*e.pct/100}));
   return L;
 }
-const ingHTML=L=>L.map(i=>`<div><span>${esc(i.n)}</span><b>${fmt(i.g)}</b></div>`).join('');
+const ingHTML=L=>L.map(i=>`<div><span>${esc(i.n==='Sauerteig-Starter (aktiv)'?`Starter ${pet.name} (aktiv)`:i.n)}</span><b>${fmt(i.g)}</b></div>`).join('');
 
 /* ---------- Rechner ---------- */
 function calc(){
@@ -181,7 +181,8 @@ function render(){
 }
 function nextStep(){
   const b=getBread(plan.slug),S=b.bread_steps;
-  if(plan.idx>=S.length-1){plan=null;LS.del('sb_plan');render();toast('Fertig! Lass es gut auskühlen.');return}
+  if(/Starter füttern/.test(S[plan.idx].title))feedPet(true); // Schritt erledigt = Starter gefüttert
+  if(plan.idx>=S.length-1){plan=null;LS.del('sb_plan');pet.bakes++;addXp(50);drawPet();render();toast(`Fertig! Lass es gut auskühlen. ${pet.name} bekommt +50 XP.`);return}
   plan.idx++;plan.starts[plan.idx]=Date.now();LS.set('sb_plan',plan);render();
 }
 
@@ -345,6 +346,7 @@ async function send(){
   const b=plan&&getBread(plan.slug),rec=ck.recipes.slice(0,5).map(r=>r.title).join('; ');
   const sys='Du bist ein freundlicher, erfahrener Sauerteig-Bäcker. Antworte auf Deutsch, kurz und praktisch.'
     +(b?` Die Person backt gerade: ${b.name} für ${plan.persons} Personen, aktueller Schritt: ${b.bread_steps[plan.idx].title}.`:'')
+    +` Ihr Starter heißt ${pet.name}.`
     +(rec?` Ihre Chefkoch-Lieblingsrezepte: ${rec}.`:'');
   // Verlauf nur als Text (Fotos werden nie erneut gesendet), kurz gehalten
   const hist=chat.slice(0,-2).filter(m=>!m.e).slice(-6).map(m=>({role:m.r==='u'?'user':'model',parts:[{text:(m.img?'[Foto] ':'')+m.t}]}));
@@ -362,7 +364,60 @@ async function send(){
 }
 $('chatSend').onclick=send;$('chatIn').addEventListener('keydown',e=>e.key==='Enter'&&send());
 
+/* ---------- Starter-Maskottchen ---------- */
+const PCOL=[['Creme','#f1dcae'],['Gold','#e5b96a'],['Roggen','#b88a5a'],['Rosa','#f3b3c0'],['Mint','#b6e0c8'],['Lila','#cdb6ea']];
+const PEYE=['Rund','Fröhlich','Müde','Cool'];
+const PACC=[['Keins',0],['Kochmütze',1],['Blume',2],['Schleife',3],['Krone',5]]; // [Name, ab Level]
+const PTITLE=['Frischling','Blubberer','Gärmeister','Sauerteig-Profi','Legende'];
+let pet={name:'Blubb',col:0,eye:0,acc:0,xp:0,bakes:0,fed:null,...LS.get('sb_pet',{})};
+const savePet=()=>LS.set('sb_pet',pet);
+const petLvl=()=>Math.floor(Math.sqrt(pet.xp/25))+1;
+const petMood=()=>!pet.fed?0:Date.now()-pet.fed<12*36e5?2:Date.now()-pet.fed<24*36e5?1:0; // 2 satt, 1 hungrig, 0 sehr hungrig
+function addXp(n){const l=petLvl();pet.xp+=n;savePet();if(petLvl()>l)toast(`${pet.name} ist jetzt Level ${petLvl()}!`)}
+function feedPet(auto){
+  const fresh=!pet.fed||Date.now()-pet.fed>8*36e5;pet.fed=Date.now();
+  if(fresh)addXp(5);else savePet();
+  drawPet();if(!auto)toast(fresh?`${pet.name} sagt danke! +5 XP`:`${pet.name} ist schon satt.`);
+}
+function petSVG(){
+  const ink='#3b2a1a',m=petMood(),T=[80,70,58][m],col=PCOL[pet.col][1];
+  const eyes=[`<circle cx="45" cy="98" r="4" fill="${ink}"/><circle cx="75" cy="98" r="4" fill="${ink}"/>`,
+    `<path d="M40 100q5-8 10 0M70 100q5-8 10 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`,
+    `<path d="M40 98h10M70 98h10" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`,
+    `<rect x="37" y="92" width="20" height="11" rx="4" fill="${ink}"/><rect x="63" y="92" width="20" height="11" rx="4" fill="${ink}"/><path d="M57 96h6" stroke="${ink}" stroke-width="2"/>`][pet.eye];
+  const mouth=[`<path d="M52 114q8-7 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`,
+    `<path d="M52 111h16" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`,
+    `<path d="M52 107q8 9 16 0" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`][m];
+  const bub=[[38,T+14,3],[82,T+22,2.5],[70,T+9,2],...(m==2?[[50,T+30,2],[84,T+36,3]]:[])].map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity=".55"/>`).join('');
+  const acc=['',
+    `<path d="M40 30v-7a9 9 0 0 1 5-15 11 11 0 0 1 30 0 9 9 0 0 1 5 15v7z" fill="#fff" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`,
+    [0,72,144,216,288].map(a=>`<circle cx="${(60+7*Math.cos(a*Math.PI/180)).toFixed(1)}" cy="${(20+7*Math.sin(a*Math.PI/180)).toFixed(1)}" r="5" fill="#f08aa5" stroke="${ink}" stroke-width="1.5"/>`).join('')+`<circle cx="60" cy="20" r="4" fill="#f2c230" stroke="${ink}" stroke-width="1.5"/>`,
+    `<path d="M60 36L42 27v18zM60 36l18-9v18z" fill="#e0556b" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="36" r="4.5" fill="#c23a50" stroke="${ink}" stroke-width="1.5"/>`,
+    `<path d="M38 30l-3-19 13 10 12-15 12 15 13-10-3 19z" fill="#f2c230" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`][pet.acc];
+  return `<svg viewBox="0 0 120 140" role="img" aria-label="${esc(pet.name)}"><ellipse cx="60" cy="130" rx="38" ry="6" fill="#3b2a1a" opacity=".12"/>
+    <rect x="25" y="40" width="70" height="85" rx="14" fill="#fffaf0" stroke="${ink}" stroke-width="2.5"/>
+    <path d="M27 ${T}Q60 ${T-8} 93 ${T}V111a12 12 0 0 1-12 12H39a12 12 0 0 1-12-12z" fill="${col}"/>${bub}
+    <path d="M33 52v38" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>${eyes}${mouth}
+    <rect x="30" y="30" width="60" height="12" rx="4" fill="#b5772f" stroke="${ink}" stroke-width="2.5"/>${acc}</svg>`;
+}
+function drawPet(){
+  const l=petLvl(),lo=(l-1)**2*25,hi=l**2*25,m=petMood(),ago=pet.fed?Date.now()-pet.fed:0,h=Math.floor(ago/36e5);
+  $('petArt').innerHTML=petSVG();$('petName').textContent=pet.name;
+  $('petLvl').textContent=`Level ${l} · ${PTITLE[Math.min(l-1,PTITLE.length-1)]} · ${pet.bakes} ${pet.bakes==1?'Brot':'Brote'} gebacken`;
+  $('petXp').style.width=Math.round((pet.xp-lo)/(hi-lo)*100)+'%';
+  $('petMood').textContent=!pet.fed?`${pet.name} wurde noch nie gefüttert und hat Hunger.`:m==2?`${pet.name} ist satt und zufrieden (zuletzt gefüttert vor ${h} Std).`:m==1?`${pet.name} wird hungrig. Zuletzt gefüttert vor ${h} Std.`:`${pet.name} hat großen Hunger! Zuletzt gefüttert vor ${Math.floor(h/24)} Tg ${h%24} Std.`;
+  const chip=(id,arr,key,fn)=>{$(id).innerHTML=arr.map((a,i)=>fn(a,i)).join('');$(id).querySelectorAll('button:not([disabled])').forEach(b=>b.onclick=()=>{pet[key]=+b.dataset.i;savePet();drawPet()})};
+  chip('pCol',PCOL,'col',(c,i)=>`<button class="sw${pet.col==i?' on':''}" data-i="${i}" style="background:${c[1]}" aria-label="${c[0]}"></button>`);
+  chip('pEye',PEYE,'eye',(e,i)=>`<button class="${pet.eye==i?'on':''}" data-i="${i}">${e}</button>`);
+  chip('pAcc',PACC,'acc',(a,i)=>`<button class="${pet.acc==i?'on':''}" data-i="${i}"${a[1]>l?' disabled':''}>${a[0]}${a[1]>l?` (ab Lv ${a[1]})`:''}</button>`);
+}
+$('petIn').value=pet.name;
+$('petIn').addEventListener('input',()=>{pet.name=$('petIn').value.trim().slice(0,16)||'Starter';savePet();$('petName').textContent=pet.name});
+$('petIn').addEventListener('change',drawPet);
+$('petFeed').onclick=()=>feedPet(false);
+setInterval(()=>{if(!document.hidden&&$('tab-pet').classList.contains('active')&&document.activeElement!==$('petIn'))drawPet()},60000);
+
 /* ---------- Start ---------- */
-quietUI();keyState();drawChat();drawCk();loadBreads();
+quietUI();keyState();drawChat();drawCk();drawPet();loadBreads();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 

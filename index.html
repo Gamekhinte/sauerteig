@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=12">
 <title>Sauerteig Helfer</title>
 </head>
 <body>
@@ -25,6 +25,9 @@
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
   <symbol id="i-jar" viewBox="0 0 24 24"><path d="M8 3h8v3H8z"/><path d="M6 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M6 13h12"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -52,10 +55,25 @@
       <input type="number" id="persons" min="1" max="50" value="4" inputmode="numeric" placeholder="z. B. 4"></label>
     <label>Welche Brotsorte?
       <select id="bread"><option>Lade Sorten…</option></select></label>
-    <label>Wann startest du?
-      <input type="datetime-local" id="start"></label>
-    <p id="breadInfo" class="muted"></p>
+    <p id="breadInfo" class="muted" style="margin-top:0"></p>
     <div id="ckMatch"></div>
+    <label>Wo stehst du gerade?
+      <select id="fromStep"></select></label>
+    <label>Starter füttern im Verhältnis
+      <select id="ratio"></select></label>
+    <div class="seg" id="modeSeg">
+      <button type="button" id="mStart" class="on">Startzeit festlegen</button>
+      <button type="button" id="mEnd">Zielzeit festlegen</button>
+    </div>
+    <label id="goalL" hidden>Was soll dann fertig sein?
+      <select id="goal">
+        <option value="oven">Backbeginn im Ofen</option>
+        <option value="out">Brot kommt aus dem Ofen</option>
+        <option value="eat">Essfertig (ausgekühlt)</option>
+      </select></label>
+    <label><span id="startLbl">Wann startest du?</span>
+      <input type="datetime-local" id="start"></label>
+    <p id="planPrev" class="muted"></p>
     <button id="makePlan" class="btn">PLAN ERSTELLEN</button>
   </div>
   <div id="plan" hidden>
@@ -63,6 +81,7 @@
       <h2 id="planTitle"></h2>
       <div id="planIngr" class="ingr"></div>
       <p id="planFit" class="muted" style="margin-top:0"></p>
+      <p id="planEta" class="muted" style="margin-top:0"></p>
       <button class="btn ghost" id="newBake">NEUES BROT STARTEN</button>
     </div>
     <div class="card">
@@ -123,6 +142,25 @@
 </section>
 
 <section id="tab-pet" class="tab">
+  <div id="recCard" class="card" hidden>
+    <h2>AKTUELLES REZEPT</h2>
+    <p id="recName" class="pname" style="font-size:18px;text-align:left;margin-bottom:4px"></p>
+    <p id="recInfo" class="muted" style="margin-top:0"></p>
+    <p id="recStarter" class="muted"></p>
+    <button class="btn" id="recPlan">WEITER ZUM PLAN</button>
+    <button class="btn ghost" id="recClear" style="margin-top:8px">REZEPT LÖSEN</button>
+  </div>
+  <div id="petNew" class="card" hidden>
+    <h2>STARTER ANLEGEN</h2>
+    <p class="muted" style="margin-top:0">Gib deinem Starter einen Namen und sag mir, wie alt er schon ist und wann du ihn zuletzt gefüttert hast.</p>
+    <label>Name<input id="nName" maxlength="16" placeholder="z. B. Blubb" autocomplete="off"></label>
+    <div class="row">
+      <label>Alter in Tagen<input type="number" id="nAge" min="0" value="0" inputmode="numeric"></label>
+      <label>Gefüttert vor (Std)<input type="number" id="nFed" min="0" inputmode="numeric" placeholder="unbekannt"></label>
+    </div>
+    <button class="btn" id="nGo" style="margin-top:12px">STARTER ANLEGEN</button>
+  </div>
+  <div id="petMain" hidden>
   <div class="card petcard">
     <div id="petArt"></div>
     <div id="petName" class="pname"></div>
@@ -138,37 +176,59 @@
     <p class="lbl">Farbe</p><div class="chips" id="pCol"></div>
     <p class="lbl">Augen</p><div class="chips" id="pEye"></div>
     <p class="lbl">Zubehör</p><div class="chips" id="pAcc"></div>
+    <div class="row">
+      <label>Alter in Tagen<input type="number" id="pAge" min="0" inputmode="numeric"></label>
+      <label>Gefüttert vor (Std)<input type="number" id="pFedH" min="0" inputmode="numeric" placeholder="unbekannt"></label>
+    </div>
+    <button class="btn ghost" id="petDel" style="margin-top:14px">STARTER LÖSCHEN</button>
+  </div>
+  </div>
+  <div class="card">
+    <h2>FÜTTERN-GUIDE</h2>
+    <div class="row">
+      <label>Verhältnis<select id="gRatio"></select></label>
+      <label>Anstellgut (g)<input type="number" id="gAsg" value="20" min="1" inputmode="decimal"></label>
+    </div>
+    <div id="gRes" class="ingr"></div>
+    <p id="gTip" class="muted"></p>
+    <p class="muted">Richtwerte bei 21–22 °C. Nicht die Uhr entscheidet, sondern dein Starter: Mehl, Temperatur und Aktivität verändern die Zeiten deutlich. Das Fütterungsverhältnis ist dein Werkzeug, um die Reifezeit zu steuern.</p>
   </div>
 </section>
 
 <section id="tab-ck" class="tab">
   <div class="card">
-    <h2>CHEFKOCH-PROFIL</h2>
-    <p class="muted">Chefkoch erlaubt keine Anmeldung durch fremde Apps. Darum verknüpfst du hier dein Profil per Name oder Link. Dein Passwort wird nie gebraucht.</p>
-    <label>Profilname oder Profil-Link<input id="ckProf" placeholder="z. B. https://www.chefkoch.de/user/…" autocomplete="off"></label>
-    <div class="row"><button class="btn" id="ckProfSave">VERKNÜPFEN</button><button class="btn ghost" id="ckProfDel">TRENNEN</button></div>
-    <p id="ckProfState" class="muted" style="margin-bottom:0"></p>
-  </div>
-  <div class="card">
     <h2>MEINE REZEPTE</h2>
-    <p class="muted">Rezept in Chefkoch öffnen, Teilen, Link kopieren und hier einfügen. Die Brotliste sortiert sich danach, passende Rezepte erscheinen beim Planen, und der Coach kennt sie.</p>
+    <p class="muted" style="margin-top:0">Am einfachsten: In Chefkoch beim Rezept auf <b>Teilen</b> tippen und diese App auswählen (Android, wenn die App installiert ist). Sonst Link kopieren und mit dem Clipboard-Knopf einfügen. Mehrere Links auf einmal gehen auch.</p>
     <div class="row">
-      <input id="ckUrl" placeholder="Rezept-Link einfügen" autocomplete="off">
+      <input id="ckUrl" placeholder="Rezept-Link(s) einfügen" autocomplete="off">
+      <button class="btn ghost sq" id="ckPaste" aria-label="Aus Zwischenablage einfügen"><svg class="ic"><use href="#i-clip"/></svg></button>
       <button class="btn sq" id="ckAdd" aria-label="Rezept hinzufügen"><svg class="ic"><use href="#i-plus"/></svg></button>
     </div>
+    <div class="chips" id="ckFolders" style="margin:14px 0 8px"></div>
+    <div class="row" id="ckFolderTools" hidden style="margin-bottom:10px">
+      <button class="btn ghost" id="ckRen">UMBENENNEN</button><button class="btn ghost" id="ckDelF">ORDNER LÖSCHEN</button>
+    </div>
     <div id="ckList" class="rlist"></div>
+  </div>
+  <div class="card">
+    <h2>CHEFKOCH-PROFIL</h2>
+    <p class="muted" style="margin-top:0">Gelikte oder gespeicherte Rezepte kann die App nicht selbst abrufen: Chefkoch sperrt Profile für automatische Zugriffe. Hier kannst du dein Profil nur als Gedächtnisstütze hinterlegen.</p>
+    <label>Profilname oder Profil-Link<input id="ckProf" placeholder="z. B. https://www.chefkoch.de/user/…" autocomplete="off"></label>
+    <div class="row"><button class="btn" id="ckProfSave">MERKEN</button><button class="btn ghost" id="ckProfDel">ENTFERNEN</button></div>
+    <p id="ckProfState" class="muted" style="margin-bottom:0"></p>
   </div>
 </section>
 
 </main>
 <nav>
+  <span id="navInd"></span>
   <button data-tab="bake" class="on"><svg class="ic"><use href="#i-bread"/></svg>BACKEN</button>
   <button data-tab="calc"><svg class="ic"><use href="#i-calc"/></svg>RECHNER</button>
   <button data-tab="chat"><svg class="ic"><use href="#i-chat"/></svg>COACH</button>
   <button data-tab="pet"><svg class="ic"><use href="#i-jar"/></svg>STARTER</button>
   <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>CHEFKOCH</button>
 </nav>
-<script src="extra-breads.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="extra-breads.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

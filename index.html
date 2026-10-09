@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#efe0c6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -25,7 +26,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css?v=18">
+<script>try{var th=JSON.parse(localStorage.getItem('sb_theme'));if(th==='dark'||th==='light')document.documentElement.setAttribute('data-theme',th)}catch(e){}</script>
+<link rel="stylesheet" href="styles.css?v=25">
 <title>LilDough</title>
 </head>
 <body>
@@ -48,6 +50,9 @@
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></symbol>
 </defs></svg>
 <header><h1>LILDOUGH</h1></header>
 <div id="banner" class="banner" hidden></div>
@@ -61,7 +66,7 @@
       <label>Von<input type="time" id="qFrom"></label>
       <label>Bis<input type="time" id="qTo"></label>
     </div>
-    <p class="muted" style="margin-bottom:0">Schritte beginnen und erinnern nur außerhalb dieser Zeit. Lange Gehzeiten über Nacht sind kein Problem, der nächste Schritt startet dann erst am Ende der Ruhezeit.</p>
+    <p class="muted" style="margin-bottom:0">In der Ruhezeit startet und meldet sich nichts. Lange Gehzeiten über Nacht gehen trotzdem, der nächste Schritt beginnt dann erst, wenn die Ruhezeit vorbei ist.</p>
   </div>
 
   <div id="setup" class="card">
@@ -70,9 +75,10 @@
       <input type="number" id="persons" min="1" max="50" value="4" inputmode="numeric" placeholder="z. B. 4"></label>
     <label>Welche Brotsorte?
       <select id="bread"><option>Lade Sorten…</option></select></label>
-    <img id="setupImg" class="recimg" alt="" hidden referrerpolicy="no-referrer" loading="lazy">
     <p id="breadInfo" class="muted" style="margin-top:0"></p>
     <div id="ckMatch"></div>
+    <label>Raumtemperatur (°C)<input type="number" class="tempIn" min="5" max="40" inputmode="numeric"></label>
+    <p class="muted tempNote" style="margin-top:0"></p>
     <label>Wo stehst du gerade?
       <select id="fromStep"></select></label>
     <label>Starter füttern im Verhältnis
@@ -95,19 +101,39 @@
   <div id="plan" hidden>
     <div class="card">
       <h2 id="planTitle"></h2>
-      <img id="planImg" class="recimg" alt="" hidden referrerpolicy="no-referrer" loading="lazy">
       <div id="planIngr" class="ingr"></div>
       <p id="planFit" class="muted" style="margin-top:0"></p>
       <p id="planEta" class="muted" style="margin-top:0"></p>
+      <label>Raumtemperatur (°C)<input type="number" class="tempIn" min="5" max="40" inputmode="numeric"></label>
+      <p class="muted tempNote" style="margin-top:0"></p>
       <button class="btn stop" id="newBake"><svg class="ic"><use href="#i-stop"/></svg> STOPPEN UND ALLES LÖSCHEN</button>
     </div>
     <div class="card">
       <h2>ERINNERUNGEN</h2>
-      <p class="muted" id="notifState"></p>
-      <p class="muted">Sobald ein Schritt fertig ist, bekommst du eine Mitteilung, auch wenn die App geschlossen ist (Server-Push, kann bis zu 30 Sekunden später kommen). Auf dem iPhone geht das nur, wenn die App über „Zum Home-Bildschirm“ installiert ist. Als zusätzliche Sicherheit kannst du den Ablauf in deinen Kalender laden.</p>
+      <p class="muted" data-notif></p>
+      <p class="muted">Wenn ein Schritt fertig ist, kommt eine Mitteilung, auch bei geschlossener App (Push, kann bis zu 30 Sekunden dauern). Auf dem iPhone klappt das nur, wenn die App über „Zum Home-Bildschirm“ installiert ist. Zur Sicherheit kannst du den Ablauf auch in deinen Kalender laden.</p>
       <div class="row"><button class="btn" id="notifBtn">AKTIVIEREN</button><button class="btn ghost" id="icsBtn">IN KALENDER</button></div>
     </div>
     <div id="steps"></div>
+  </div>
+  <div class="card" id="journal">
+    <h2>BACK-TAGEBUCH</h2>
+    <p class="muted" id="jInfo" style="margin-top:0"></p>
+    <button class="btn" id="jNew">NEUER EINTRAG</button>
+    <div id="jForm" hidden>
+      <label>Name des Brots<input id="jBread" maxlength="60" placeholder="z. B. Dinkelbrot" autocomplete="off"></label>
+      <p class="lbl">Bewertung</p><div class="chips stars" id="jStars"></div>
+      <div class="row">
+        <label>Raumtemperatur (°C)<input type="number" id="jTemp" min="5" max="40" inputmode="numeric"></label>
+        <label>Gesamtdauer (Std)<input type="number" id="jHours" min="0" step="0.5" inputmode="decimal"></label>
+      </div>
+      <label>Notiz<textarea id="jNote" rows="3" maxlength="400" placeholder="z. B. Krume, Kruste, Geschmack …"></textarea></label>
+      <img id="jPrev" class="recimg" alt="" hidden>
+      <input type="file" id="jPhoto" accept="image/*" hidden>
+      <button class="btn ghost" id="jPhotoBtn" type="button" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px"><svg class="ic"><use href="#i-image"/></svg> FOTO</button>
+      <div class="row"><button class="btn" id="jSave" type="button">SPEICHERN</button><button class="btn ghost" id="jCancel" type="button">ABBRECHEN</button></div>
+    </div>
+    <div id="jList" class="jlist"></div>
   </div>
 </section>
 
@@ -121,18 +147,18 @@
         <input type="number" id="cAmount" min="1" inputmode="decimal" placeholder="z. B. 80"></label>
     </div>
     <div id="cResult" class="ingr"></div>
-    <p class="muted">Der Starter enthält je zur Hälfte Mehl und Wasser. Das ist in den Mengen unten schon eingerechnet, nichts extra abziehen.</p>
+    <p class="muted">Der Starter besteht je zur Hälfte aus Mehl und Wasser. Das ist unten schon eingerechnet, du musst nichts abziehen.</p>
   </div>
   <div class="card">
     <h2>WASSER-GUIDE</h2>
-    <p class="muted" style="margin-top:0">Nicht jedes Mehl bindet gleich viel Wasser. Wähle dein Mehl und die Menge.</p>
+    <p class="muted" style="margin-top:0">Jedes Mehl nimmt unterschiedlich viel Wasser auf. Such dein Mehl aus und gib die Menge ein.</p>
     <div class="row">
       <label>Mehlsorte<select id="wFlour"></select></label>
       <label>Mehl in g<input type="number" id="wAmount" value="500" min="1" inputmode="decimal"></label>
     </div>
     <div id="wResult" class="ingr"></div>
     <p id="wTip" class="muted"></p>
-    <p class="muted">Richtwerte. Die genaue Aufnahme hängt von Mehl, Mahlgrad, Proteingehalt und Quellzeit ab. Halte beim ersten Mischen 20–30 g Wasser zurück und gib sie bei Bedarf dazu.</p>
+    <p class="muted">Das sind nur Richtwerte, je nach Mehl und Quellzeit kann es abweichen. Lass beim ersten Mischen 20 bis 30 g Wasser weg und gib sie dazu, wenn der Teig sie braucht.</p>
   </div>
 </section>
 
@@ -143,7 +169,7 @@
       <summary><svg class="ic"><use href="#i-key"/></svg> API KEY <span id="keyState"></span></summary>
       <input type="password" id="keyIn" placeholder="API Key einfügen" autocomplete="off">
       <div class="row"><button class="btn" id="keySave">SPEICHERN</button><button class="btn ghost" id="keyDel">LÖSCHEN</button></div>
-      <p class="muted">Kostenlos auf aistudio.google.com/apikey. Der Key bleibt nur lokal in diesem Browser und wird nur an Google gesendet.</p>
+      <p class="muted">Gibt es kostenlos auf aistudio.google.com/apikey. Der Key bleibt in diesem Browser und geht nur an Google.</p>
     </details>
     <div id="chatLog" class="log"></div>
     <div id="pend" class="pend" hidden><img id="pendImg" alt="Foto"><button class="x" id="pendX" aria-label="Foto entfernen"><svg class="ic"><use href="#i-x"/></svg></button></div>
@@ -153,14 +179,14 @@
       <input id="chatIn" placeholder="Frag etwas zu deinem Teig…" enterkeyhint="send">
       <button class="btn sq" id="chatSend" aria-label="Senden"><svg class="ic"><use href="#i-send"/></svg></button>
     </div>
-    <p class="muted" style="margin:10px 0 0">Fotos werden vor dem Senden auf 384 px verkleinert (ca. 260 Tokens) und nur einmalig mitgeschickt.</p>
+    <p class="muted" style="margin:10px 0 0">Fotos werden vorher auf 384 px verkleinert und nur einmal mitgeschickt, das spart Tokens.</p>
   </div>
 </section>
 
 <section id="tab-pet" class="tab">
   <div id="petNew" class="card" hidden>
     <h2>STARTER ANLEGEN</h2>
-    <p class="muted" style="margin-top:0">Gib deinem Starter einen Namen und sag mir, wie alt er schon ist und wann du ihn zuletzt gefüttert hast.</p>
+    <p class="muted" style="margin-top:0">Wie heißt dein Starter, wie alt ist er und wann hast du ihn zuletzt gefüttert?</p>
     <label>Name<input id="nName" maxlength="16" placeholder="z. B. Blubb" autocomplete="off"></label>
     <div class="row">
       <label>Alter in Tagen<input type="number" id="nAge" min="0" value="0" inputmode="numeric"></label>
@@ -176,7 +202,7 @@
     <div class="xp"><i id="petXp"></i></div>
     <p id="petMood" class="muted"></p>
     <button class="btn" id="petFeed">HABE GEFÜTTERT</button>
-    <p class="muted" style="margin-bottom:0">Tippe hier, wenn du deinen echten Starter gefüttert hast. Fütterst du regelmäßig und backst Brote, sammelt er Erfahrung und schaltet neues Zubehör frei.</p>
+    <p class="muted" style="margin-bottom:0">Tippe hier, nachdem du deinen echten Starter gefüttert hast. Mit regelmäßigem Füttern und gebackenen Broten steigt er im Level und bekommt neues Zubehör.</p>
   </div>
   <div class="card">
     <h2>ANPASSEN</h2>
@@ -190,16 +216,27 @@
     </div>
     <button class="btn ghost" id="petDel" style="margin-top:14px">STARTER LÖSCHEN</button>
   </div>
+  <div class="card">
+    <h2>PEAK-TAGEBUCH</h2>
+    <p class="muted" style="margin-top:0">Trag ein, wann du fütterst und wann dein Starter am höchsten steht. Daraus merkt sich LilDough, wie schnell er ist, und plant damit.</p>
+    <div class="row">
+      <label>Verhältnis beim Füttern<select id="feedRatio"></select></label>
+      <label>Raumtemperatur (°C)<input type="number" class="tempIn" min="5" max="40" inputmode="numeric"></label>
+    </div>
+    <button class="btn" id="petPeak" style="margin-top:12px">PEAK ERREICHT</button>
+    <p class="muted" id="peakInfo"></p>
+    <div id="peakList" class="ingr"></div>
+    <button class="btn ghost" id="peakUndo">LETZTEN EINTRAG LÖSCHEN</button>
+  </div>
   </div>
   <div class="card">
-    <h2>FÜTTERN-GUIDE</h2>
-    <div class="row">
+    <h2>FÜTTERN-GUIDE</h2>    <div class="row">
       <label>Verhältnis<select id="gRatio"></select></label>
       <label>Anstellgut (g)<input type="number" id="gAsg" value="20" min="1" inputmode="decimal"></label>
     </div>
     <div id="gRes" class="ingr"></div>
     <p id="gTip" class="muted"></p>
-    <p class="muted">Richtwerte bei 21–22 °C. Nicht die Uhr entscheidet, sondern dein Starter: Mehl, Temperatur und Aktivität verändern die Zeiten deutlich. Das Fütterungsverhältnis ist dein Werkzeug, um die Reifezeit zu steuern.</p>
+    <p class="muted">Richtwerte bei 21 bis 22 °C. Wie lange dein Starter wirklich braucht, hängt von Mehl, Temperatur und Aktivität ab. Über das Verhältnis steuerst du die Reifezeit.</p>
   </div>
 </section>
 
@@ -218,12 +255,44 @@
     </div>
     <div id="ckList" class="rlist"></div>
   </div>
+</section>
+
+<section id="tab-set" class="tab">
   <div class="card">
-    <h2>CHEFKOCH-PROFIL</h2>
-    <p class="muted" style="margin-top:0">Gelikte oder gespeicherte Rezepte kann die App nicht selbst abrufen: Chefkoch sperrt Profile für automatische Zugriffe. Hier kannst du dein Profil nur als Gedächtnisstütze hinterlegen.</p>
-    <label>Profilname oder Profil-Link<input id="ckProf" placeholder="z. B. https://www.chefkoch.de/user/…" autocomplete="off"></label>
-    <div class="row"><button class="btn" id="ckProfSave">MERKEN</button><button class="btn ghost" id="ckProfDel">ENTFERNEN</button></div>
-    <p id="ckProfState" class="muted" style="margin-bottom:0"></p>
+    <h2>SPRACHE</h2>
+    <div class="seg" id="langSeg">
+      <button type="button" data-l="de">Deutsch</button>
+      <button type="button" data-l="en">English</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>DARSTELLUNG</h2>
+    <div class="seg" id="themeSeg">
+      <button type="button" data-th="auto">Automatisch</button>
+      <button type="button" data-th="light">Hell</button>
+      <button type="button" data-th="dark">Dunkel</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>BENACHRICHTIGUNGEN</h2>
+    <p class="muted" data-notif style="margin-top:0"></p>
+    <div class="row"><button class="btn" id="notifBtn2">AKTIVIEREN</button></div>
+  </div>
+  <div class="card">
+    <h2>BROT-COACH</h2>
+    <p class="muted" id="coachMode" style="margin-top:0"></p>
+    <button class="btn ghost" id="goKey">API-KEY ÄNDERN</button>
+  </div>
+  <div class="card">
+    <h2>MEINE DATEN</h2>
+    <p class="muted" style="margin-top:0">Alles liegt nur auf diesem Gerät. Der API-Key ist nicht im Export enthalten.</p>
+    <div class="row"><button class="btn ghost" id="dataExp">EXPORTIEREN</button><button class="btn stop" id="dataDel">ALLES LÖSCHEN</button></div>
+  </div>
+  <div class="card">
+    <details class="legalbox"><summary>DATENSCHUTZ</summary>
+      <div class="legal" id="legal"></div>
+    </details>
+    <p class="muted" style="margin:12px 0 0">LilDough 3.0</p>
   </div>
 </section>
 
@@ -234,9 +303,11 @@
   <button data-tab="calc"><svg class="ic"><use href="#i-calc"/></svg>RECHNER</button>
   <button data-tab="chat"><svg class="ic"><use href="#i-chat"/></svg>COACH</button>
   <button data-tab="pet"><svg class="ic"><use href="#i-jar"/></svg>STARTER</button>
-  <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>CHEFKOCH</button>
+  <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>REZEPTE</button>
+  <button data-tab="set"><svg class="ic"><use href="#i-gear"/></svg>OPTIONEN</button>
 </nav>
-<script src="extra-breads.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="i18n.js?v=25"></script>
+<script src="extra-breads.js?v=25"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

@@ -73,14 +73,12 @@ const ingHTML=L=>L.map(i=>`<div><span>${esc(i.n==='Sauerteig-Starter (aktiv)'&&p
 /* ---------- Rechner ---------- */
 function calc(){
   const b=getBread($('cBread').value);if(!b){$('cResult').innerHTML='';return}
-  const base=ingredients(b,100);
-  if($('cIngr').dataset.s!==b.slug){$('cIngr').innerHTML=base.map((x,i)=>`<option value="${i}">${esc(x.n)}</option>`).join('');$('cIngr').dataset.s=b.slug}
   const am=parseFloat($('cAmount').value),pe=parseFloat($('cPersons').value);let flour=0,head='';
-  if(am>0){flour=100*am/base[+$('cIngr').value].g;head=`Für ${fmt(am)} ${base[+$('cIngr').value].n}:`}
+  if(am>0){flour=am;head=`Für ${fmt(am)} Mehl:`}
   else if(pe>0){flour=pe*b.flour_per_person_g;head=`Für ${pe} ${pe==1?'Person':'Personen'}:`}
   $('cResult').innerHTML=flour?`<p class="muted" style="margin:0">${head}</p>`+ingHTML(ingredients(b,flour)):'<p class="muted">Gib Personen oder eine Menge ein.</p>';
 }
-['cBread','cPersons','cAmount','cIngr'].forEach(id=>$(id).addEventListener('input',calc));
+['cBread','cPersons','cAmount'].forEach(id=>$(id).addEventListener('input',calc));
 
 /* ---------- Wasser-Guide: Wasseraufnahme je Mehlsorte (Richtwerte, Wasser auf 500 g Mehl) ---------- */
 const FLOURS=[
@@ -239,7 +237,7 @@ function render(){
   keepAwake();notifState();syncPush();drawRec();
   if(!b)return;
   const flour=plan.persons*b.flour_per_person_g;
-  $('planTitle').textContent=b.raw?b.name:`${b.name} · ${plan.persons} ${plan.persons==1?'Person':'Personen'}`;
+  setImg($('planImg'),b.raw&&b.raw.image,b.name);$('planTitle').textContent=b.raw?b.name:`${b.name} · ${plan.persons} ${plan.persons==1?'Person':'Personen'}`;
   $('planIngr').innerHTML=b.raw?b.raw.ingredients.map(l=>`<div><span>${esc(l)}</span></div>`).join(''):ingHTML(ingredients(b,flour));
   $('planFit').textContent=fit(b)||'';
   {const g=plan.goal,ty=g?g.type:'eat',eta=milestone(b,ty,plan.idx,plan.starts[plan.idx]),late=g&&eta>g.t+5*6e4;
@@ -454,12 +452,12 @@ function recipeToBread(r){
   const sg=(d.ingredients||[]).map(l=>/anstellgut|sauerteig|starter|ansatz/i.test(l)?l.match(/(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i):null).find(Boolean);
   return {id:'ck-'+id,slug:'ck-'+id,name:d.name||r.title,tagline:'Chefkoch-Rezept',emoji:'',flour_per_person_g:0,hydration_pct:0,starter_pct:0,salt_pct:0,extras:[],sort_order:900,
     bread_steps:steps.map((t,i)=>({id:`ck-${id}-${i}`,position:i+1,title:shortTitle(t),description:t,minutes:stepMinutes(t),bake:/backofen|\bofen\b|backen/i.test(t)})),
-    raw:{ingredients:d.ingredients||[],yield:d.yield||'',url:r.url,starterG:sg?Math.round(parseFloat(sg[1].replace(',','.'))*(sg[2].toLowerCase()==='kg'?1000:1)):0}};
+    raw:{ingredients:d.ingredients||[],yield:d.yield||'',image:d.image||'',url:r.url,starterG:sg?Math.round(parseFloat(sg[1].replace(',','.'))*(sg[2].toLowerCase()==='kg'?1000:1)):0}};
 }
 function syncCkBreads(){breads=breads.filter(b=>!b.raw);ck.recipes.forEach(r=>{if(r.data)breads.push(recipeToBread(r))})}
 async function startRecipe(i,btn){
   const r=ck.recipes[i];if(!r)return;
-  if(!r.data){
+  if(!r.data||r.data.image===undefined){
     if(btn){btn.disabled=true}toast('Rezept wird geladen …');
     try{
       const j=await fetch(CKAPI,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'recipe',url:r.url})}).then(x=>x.json());
@@ -470,11 +468,12 @@ async function startRecipe(i,btn){
   ck.active=b.slug;saveCk();fillSelects();$('bread').value=b.slug;showInfo();fillSetup();drawCk();drawRec();
   goTab('pet');toast(`„${b.name}“ ist ausgewählt. Hier siehst du, was dein Starter dafür braucht.`);
 }
+function setImg(el,src,alt){el.hidden=!src;if(src){if(el.getAttribute('src')!==src)el.src=src;el.alt=alt||''}else el.removeAttribute('src')}
 const activeRec=()=>{const s=(plan&&plan.slug.startsWith('ck-')&&plan.slug)||ck.active;return s&&breads.find(b=>b.slug===s&&b.raw)||null};
 function drawRec(){
   const b=activeRec();$('recCard').hidden=!b;if(!b)return;
   const n=b.raw.starterG,r=RATIOS[+$('gRatio').value]||RATIOS[1];
-  $('recName').textContent=b.name;
+  $('recName').textContent=b.name;setImg($('recImg'),b.raw.image,b.name);
   $('recInfo').textContent=`${b.raw.yield?b.raw.yield+' · ':''}${b.bread_steps.length} Schritte · ${b.raw.ingredients.length} Zutaten`;
   if(n){const a=Math.max(1,Math.ceil(n/(1+2*r[0])));
     $('recStarter').innerHTML=`Dieses Rezept braucht ca. <b>${n} g Starter</b>. Füttere dafür z. B. <b>${a} g Anstellgut</b> mit ${fmt(a*r[0])} Wasser und ${fmt(a*r[0])} Mehl (${rLbl(r)}). Das ergibt ${fmt(a*(1+2*r[0]))}, bereit nach ${r[1]}–${r[2]} Std.`;

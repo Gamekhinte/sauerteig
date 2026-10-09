@@ -1,7 +1,7 @@
 'use strict';
 const SB_URL='https://rsirxtxeiolsaultreuz.supabase.co';
 const SB_KEY='sb_publishable_VYVOJ--pfOlhIES2swipGg_E33b0185';
-const GEMINI='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI='https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'; // aktuelles Standard-Flash-Modell mit kostenlosem Kontingent
 const $=id=>document.getElementById(id);
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch{return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},del:k=>{try{localStorage.removeItem(k)}catch{}}};
 const ICON=n=>`<svg class="ic"><use href="#i-${n}"/></svg>`;
@@ -50,7 +50,13 @@ const getBread=s=>breads.find(b=>b.slug===s);
 function showInfo(){
   const b=getBread($('bread').value);if(!b){$('breadInfo').textContent='';$('ckMatch').innerHTML='';return}
   $('persons').parentElement.hidden=!!b.raw;
-  if(b.raw){$('ckMatch').innerHTML='';$('breadInfo').textContent=`Chefkoch-Rezept${b.raw.yield?' · '+b.raw.yield:''} · ${b.bread_steps.length} Schritte. Die Dauer der Schritte wurde aus dem Rezepttext abgelesen und kann abweichen.`;return}
+  setImg($('setupImg'),b.raw&&b.raw.image,b.name);
+  if(b.raw){
+    const n=b.raw.starterG,r=RATIOS[1],a=Math.max(1,Math.ceil(n/(1+2*r[0])));$('ckMatch').innerHTML='';
+    $('breadInfo').textContent=`Chefkoch-Rezept${b.raw.yield?' · '+b.raw.yield:''} · ${b.bread_steps.length} Schritte. Die Dauer der Schritte wurde aus dem Rezepttext abgelesen und kann abweichen.`
+      +(n?` Das Rezept braucht ca. ${n} g Starter. Füttere dafür z. B. ${a} g Anstellgut mit ${fmt(a*r[0])} Wasser und ${fmt(a*r[0])} Mehl (${rLbl(r)}).`:'');
+    return;
+  }
   $('breadInfo').textContent=`${b.tagline}. Teig: ${b.hydration_pct}% Wasser, ${b.starter_pct}% Starter, ${b.salt_pct}% Salz (bezogen auf das Mehl). ${fit(b)||''}`;
   const m=match(b).slice(0,3);
   $('ckMatch').innerHTML=m.length?`<p class="muted" style="margin:0 0 4px">Aus deinen Chefkoch-Rezepten:</p>`+m.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener">${ICON('link')} ${esc(r.title)}</a>`).join(''):'';
@@ -234,7 +240,7 @@ function schedule(b){ // projizierte Startzeiten; sh[i]: wegen Ruhezeit verschob
 function render(){
   const b=pb();
   $('setup').hidden=!!b;$('plan').hidden=!b;
-  keepAwake();notifState();syncPush();drawRec();
+  keepAwake();notifState();syncPush();
   if(!b)return;
   const flour=plan.persons*b.flour_per_person_g;
   setImg($('planImg'),b.raw&&b.raw.image,b.name);$('planTitle').textContent=b.raw?b.name:`${b.name} · ${plan.persons} ${plan.persons==1?'Person':'Personen'}`;
@@ -344,10 +350,10 @@ $('notifBtn').onclick=async()=>{
 $('icsBtn').onclick=()=>{
   const b=pb();if(!b)return;const {T}=schedule(b),z=t=>new Date(t).toISOString().replace(/[-:]|\.\d+/g,'');
   const esc2=t=>t.replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,');
-  let o='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Sauerteig Helfer//DE\r\n';
+  let o='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//LilDough//DE\r\n';
   b.bread_steps.forEach((s,i)=>{if(i<plan.idx)return;o+=`BEGIN:VEVENT\r\nUID:${plan.starts[0]}-${i}@sauerteig\r\nDTSTAMP:${z(Date.now())}\r\nDTSTART:${z(T[i])}\r\nDTEND:${z(T[i]+Math.max(s.minutes,5)*6e4)}\r\nSUMMARY:${esc2(s.title)}\r\nDESCRIPTION:${esc2(s.description)}\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:${esc2(s.title)}\r\nTRIGGER:PT0M\r\nEND:VALARM\r\nEND:VEVENT\r\n`});
   o+='END:VCALENDAR\r\n';
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([o],{type:'text/calendar'}));a.download='sauerteig.ics';a.click();
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([o],{type:'text/calendar'}));a.download='lildough.ics';a.click();
 };
 
 /* ---------- Chefkoch ---------- */
@@ -395,7 +401,7 @@ function drawCk(){
   $('ckList').innerHTML=rows.length?rows.map(([r,i])=>`<div class="rec"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a><div class="ra"><select data-mv="${i}" aria-label="Ordner">${opts(r.f)}</select><button class="go" data-go="${i}">${ICON('play')} STARTEN</button><button data-del="${i}" aria-label="Entfernen">${ICON('trash')}</button></div></div>`).join('')
     :`<p class="muted" style="margin:6px 0 0">${ck.recipes.length?'In diesem Ordner ist noch nichts.':'Noch keine Rezepte. Teile eines aus Chefkoch mit dieser App oder füge einen Link ein.'}</p>`;
   $('ckList').querySelectorAll('[data-mv]').forEach(s=>s.onchange=()=>{ck.recipes[+s.dataset.mv].f=s.value||null;saveCk();drawCk()});
-  $('ckList').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ck.recipes.splice(+b.dataset.del,1);saveCk();syncCkBreads();drawCk();fillSelects();drawRec()});
+  $('ckList').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ck.recipes.splice(+b.dataset.del,1);saveCk();syncCkBreads();drawCk();fillSelects()});
   $('ckList').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>startRecipe(+b.dataset.go,b));
 }
 $('ckRen').onclick=()=>{const f=ck.folders.find(x=>x.id===ckFilter);if(!f)return;const n=(prompt('Neuer Name',f.name)||'').trim().slice(0,24);if(n){f.name=n;saveCk();drawCk()}};
@@ -465,25 +471,12 @@ async function startRecipe(i,btn){
     }catch(e){if(btn)btn.disabled=false;return toast('Rezept konnte nicht geladen werden: '+(e.message||e))}
   }
   syncCkBreads();const b=breads.find(x=>x.raw&&x.raw.url===r.url);
-  ck.active=b.slug;saveCk();fillSelects();$('bread').value=b.slug;showInfo();fillSetup();drawCk();drawRec();
-  goTab('pet');toast(`„${b.name}“ ist ausgewählt. Hier siehst du, was dein Starter dafür braucht.`);
+  fillSelects();$('bread').value=b.slug;showInfo();fillSetup();drawCk();
+  goTab('bake');toast(plan?`„${b.name}“ ist ausgewählt. Es läuft aber schon ein Plan: Stoppe ihn zuerst.`:`„${b.name}“ ist ausgewählt. Wähle jetzt die Zeit und erstelle den Plan.`);
 }
 function setImg(el,src,alt){el.hidden=!src;if(src){if(el.getAttribute('src')!==src)el.src=src;el.alt=alt||''}else el.removeAttribute('src')}
-const activeRec=()=>{const s=(plan&&plan.slug.startsWith('ck-')&&plan.slug)||ck.active;return s&&breads.find(b=>b.slug===s&&b.raw)||null};
-function drawRec(){
-  const b=activeRec();$('recCard').hidden=!b;if(!b)return;
-  const n=b.raw.starterG,r=RATIOS[+$('gRatio').value]||RATIOS[1];
-  $('recName').textContent=b.name;setImg($('recImg'),b.raw.image,b.name);
-  $('recInfo').textContent=`${b.raw.yield?b.raw.yield+' · ':''}${b.bread_steps.length} Schritte · ${b.raw.ingredients.length} Zutaten`;
-  if(n){const a=Math.max(1,Math.ceil(n/(1+2*r[0])));
-    $('recStarter').innerHTML=`Dieses Rezept braucht ca. <b>${n} g Starter</b>. Füttere dafür z. B. <b>${a} g Anstellgut</b> mit ${fmt(a*r[0])} Wasser und ${fmt(a*r[0])} Mehl (${rLbl(r)}). Das ergibt ${fmt(a*(1+2*r[0]))}, bereit nach ${r[1]}–${r[2]} Std.`;
-    if(document.activeElement!==$('gAsg')){$('gAsg').value=a;feedGuide()}
-  }else $('recStarter').textContent='Im Rezept steht keine Starter-Menge. Der Plan läuft trotzdem mit den Schritten des Rezepts.';
-  $('recPlan').hidden=!!plan;
-}
-$('recPlan').onclick=()=>{const b=activeRec();if(!b)return;fillSelects();$('bread').value=b.slug;showInfo();fillSetup();goTab('bake')};
-$('recClear').onclick=()=>{if(plan&&plan.slug.startsWith('ck-')&&!confirm('Der laufende Plan zu diesem Rezept bleibt bestehen. Nur die Anzeige hier lösen?'))return;ck.active=null;saveCk();drawRec()};
-$('gRatio').addEventListener('input',drawRec);
+const activeRec=()=>plan&&plan.slug.startsWith('ck-')?breads.find(b=>b.slug===plan.slug&&b.raw)||null:null;
+
 /* ---------- Gemini ---------- */
 function keyState(){const k=LS.get('sb_key','');$('keyState').textContent=k?'gespeichert (••••'+k.slice(-4)+')':'fehlt';$('keyBox').open=!k}
 $('keySave').onclick=()=>{const k=$('keyIn').value.trim();if(!k)return;LS.set('sb_key',k);$('keyIn').value='';keyState();toast('Key gespeichert.')};
@@ -532,8 +525,11 @@ async function send(){
   hist.push({role:'user',parts});
   const last=chat[chat.length-1];
   try{
-    const r=await fetch(GEMINI,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist,generationConfig:{maxOutputTokens:600,thinkingConfig:{thinkingBudget:0}}})});
-    const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);
+    // Gemini 3.x lässt Denken nicht ganz abschalten: "low" spart Tokens. Falls die Einstellung abgelehnt wird, ohne sie wiederholen.
+    const ask=gc=>fetch(GEMINI,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist,generationConfig:gc})});
+    let r=await ask({maxOutputTokens:1200,thinkingConfig:{thinkingLevel:'low'}}),j=await r.json();
+    if(!r.ok&&/think/i.test(j.error?.message||'')){r=await ask({maxOutputTokens:1200});j=await r.json()}
+    if(!r.ok)throw new Error(j.error?.message||r.status);
     last.t=j.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'(keine Antwort)';
   }catch(e){last.t='Fehler: '+e.message;last.e=1}
   chat=chat.slice(-30);LS.set('sb_chat',chat.map(({p,...m})=>m));drawChat();$('chatSend').disabled=false;
@@ -623,6 +619,6 @@ $('petFeed').onclick=()=>feedPet(false);
 setInterval(()=>{if(!document.hidden&&$('tab-pet').classList.contains('active')&&document.activeElement!==$('petIn'))drawPet()},60000);
 
 /* ---------- Start ---------- */
-quietUI();keyState();drawChat();drawCk();drawPet();drawRec();loadBreads();
+quietUI();keyState();drawChat();drawCk();drawPet();loadBreads();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 

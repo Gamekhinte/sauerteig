@@ -6,7 +6,160 @@
 <meta name="theme-color" content="#efe0c6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe0c6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sauerteig">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+<title>Sauerteig Helfer</title>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-bread" viewBox="0 0 24 24"><path d="M5 11c-1.5-1-2-2.5-2-4 0-2 2-4 5-4h8c3 0 5 2 5 4 0 1.5-.5 3-2 4v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M9 8l1.5 3M13.5 8l1.5 3"/></symbol>
+  <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h8"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+</defs></svg>
+<header><h1>SAUERTEIG <small>v2</small></h1></header>
+<div id="banner" class="banner" hidden></div>
+<main>
+
+<section id="tab-bake" class="tab active">
+  <div class="card">
+    <h2><svg class="ic"><use href="#i-moon"/></svg> RUHEZEIT</h2>
+    <label class="chk"><input type="checkbox" id="qOn">In dieser Zeit soll nichts anstehen</label>
+    <div class="row" id="qTimes">
+      <label>Von<input type="time" id="qFrom"></label>
+      <label>Bis<input type="time" id="qTo"></label>
+    </div>
+    <p class="muted" style="margin-bottom:0">Schritte beginnen und erinnern nur außerhalb dieser Zeit. Lange Gehzeiten über Nacht sind kein Problem, der nächste Schritt startet dann erst am Ende der Ruhezeit.</p>
+  </div>
+
+  <div id="setup" class="card">
+    <h2>NEUES BROT</h2>
+    <label>Für wie viele Personen?
+      <input type="number" id="persons" min="1" max="50" value="4" inputmode="numeric" placeholder="z. B. 4"></label>
+    <label>Welche Brotsorte?
+      <select id="bread"><option>Lade Sorten…</option></select></label>
+    <label>Wann startest du?
+      <input type="datetime-local" id="start"></label>
+    <p id="breadInfo" class="muted"></p>
+    <div id="ckMatch"></div>
+    <button id="makePlan" class="btn">PLAN ERSTELLEN</button>
+  </div>
+  <div id="plan" hidden>
+    <div class="card">
+      <h2 id="planTitle"></h2>
+      <div id="planIngr" class="ingr"></div>
+      <p id="planFit" class="muted" style="margin-top:0"></p>
+      <button class="btn ghost" id="newBake">NEUES BROT STARTEN</button>
+    </div>
+    <div class="card">
+      <h2>ERINNERUNGEN</h2>
+      <p class="muted" id="notifState"></p>
+      <p class="muted">Sobald ein Schritt fertig ist, bekommst du eine Mitteilung, auch wenn die App geschlossen ist (Server-Push, kann bis zu 30 Sekunden später kommen). Auf dem iPhone geht das nur, wenn die App über „Zum Home-Bildschirm“ installiert ist. Als zusätzliche Sicherheit kannst du den Ablauf in deinen Kalender laden.</p>
+      <div class="row"><button class="btn" id="notifBtn">AKTIVIEREN</button><button class="btn ghost" id="icsBtn">IN KALENDER</button></div>
+    </div>
+    <div id="steps"></div>
+  </div>
+</section>
+
+<section id="tab-calc" class="tab">
+  <div class="card">
+    <h2>RECHNER</h2>
+    <label>Brotsorte<select id="cBread"></select></label>
+    <div class="row">
+      <label>Personen<input type="number" id="cPersons" min="1" max="50" inputmode="numeric" placeholder="z. B. 4"></label>
+      <label>oder Menge in g
+        <input type="number" id="cAmount" min="1" inputmode="decimal" placeholder="z. B. 80"></label>
+    </div>
+    <label>…von dieser Zutat<select id="cIngr"></select></label>
+    <div id="cResult" class="ingr"></div>
+    <p class="muted">Der Starter enthält je zur Hälfte Mehl und Wasser. Das ist in den Mengen unten schon eingerechnet, nichts extra abziehen.</p>
+  </div>
+  <div class="card">
+    <h2>WASSER-GUIDE</h2>
+    <p class="muted" style="margin-top:0">Nicht jedes Mehl bindet gleich viel Wasser. Wähle dein Mehl und die Menge.</p>
+    <div class="row">
+      <label>Mehlsorte<select id="wFlour"></select></label>
+      <label>Mehl in g<input type="number" id="wAmount" value="500" min="1" inputmode="decimal"></label>
+    </div>
+    <div id="wResult" class="ingr"></div>
+    <p id="wTip" class="muted"></p>
+    <p class="muted">Richtwerte. Die genaue Aufnahme hängt von Mehl, Mahlgrad, Proteingehalt und Quellzeit ab. Halte beim ersten Mischen 20–30 g Wasser zurück und gib sie bei Bedarf dazu.</p>
+  </div>
+</section>
+
+<section id="tab-chat" class="tab">
+  <div class="card chat">
+    <h2>BROT-COACH (GEMINI)</h2>
+    <details id="keyBox" class="keybox">
+      <summary><svg class="ic"><use href="#i-key"/></svg> API KEY <span id="keyState"></span></summary>
+      <input type="password" id="keyIn" placeholder="API Key einfügen" autocomplete="off">
+      <div class="row"><button class="btn" id="keySave">SPEICHERN</button><button class="btn ghost" id="keyDel">LÖSCHEN</button></div>
+      <p class="muted">Kostenlos auf aistudio.google.com/apikey. Der Key bleibt nur lokal in diesem Browser und wird nur an Google gesendet.</p>
+    </details>
+    <div id="chatLog" class="log"></div>
+    <div id="pend" class="pend" hidden><img id="pendImg" alt="Foto"><button class="x" id="pendX" aria-label="Foto entfernen"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="row">
+      <button class="btn ghost sq" id="imgBtn" aria-label="Foto anhängen"><svg class="ic"><use href="#i-image"/></svg></button>
+      <input type="file" id="imgIn" accept="image/*" hidden>
+      <input id="chatIn" placeholder="Frag etwas zu deinem Teig…" enterkeyhint="send">
+      <button class="btn sq" id="chatSend" aria-label="Senden"><svg class="ic"><use href="#i-send"/></svg></button>
+    </div>
+    <p class="muted" style="margin:10px 0 0">Fotos werden vor dem Senden auf 384 px verkleinert (ca. 260 Tokens) und nur einmalig mitgeschickt.</p>
+  </div>
+</section>
+
+<section id="tab-ck" class="tab">
+  <div class="card">
+    <h2>CHEFKOCH-PROFIL</h2>
+    <p class="muted">Chefkoch erlaubt keine Anmeldung durch fremde Apps. Darum verknüpfst du hier dein Profil per Name oder Link. Dein Passwort wird nie gebraucht.</p>
+    <label>Profilname oder Profil-Link<input id="ckProf" placeholder="z. B. https://www.chefkoch.de/user/…" autocomplete="off"></label>
+    <div class="row"><button class="btn" id="ckProfSave">VERKNÜPFEN</button><button class="btn ghost" id="ckProfDel">TRENNEN</button></div>
+    <p id="ckProfState" class="muted" style="margin-bottom:0"></p>
+  </div>
+  <div class="card">
+    <h2>MEINE REZEPTE</h2>
+    <p class="muted">Rezept in Chefkoch öffnen, Teilen, Link kopieren und hier einfügen. Die Brotliste sortiert sich danach, passende Rezepte erscheinen beim Planen, und der Coach kennt sie.</p>
+    <div class="row">
+      <input id="ckUrl" placeholder="Rezept-Link einfügen" autocomplete="off">
+      <button class="btn sq" id="ckAdd" aria-label="Rezept hinzufügen"><svg class="ic"><use href="#i-plus"/></svg></button>
+    </div>
+    <div id="ckList" class="rlist"></div>
+  </div>
+</section>
+
+</main>
+<nav>
+  <button data-tab="bake" class="on"><svg class="ic"><use href="#i-bread"/></svg>BACKEN</button>
+  <button data-tab="calc"><svg class="ic"><use href="#i-calc"/></svg>RECHNER</button>
+  <button data-tab="chat"><svg class="ic"><use href="#i-chat"/></svg>COACH</button>
+  <button data-tab="ck"><svg class="ic"><use href="#i-book"/></svg>CHEFKOCH</button>
+</nav>
+<script src="extra-breads.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+-title" content="Sauerteig">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml"><!DOCTYPE html>

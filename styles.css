@@ -27,7 +27,7 @@ select,input{display:block;width:100%;margin-top:5px;padding:12px;font-size:16px
 .msg.u{align-self:flex-end;background:var(--acc);color:#fff8ea}.msg.a{align-self:flex-start;background:#fffaf0;border:1px solid var(--line)}
 .chat input{margin:0}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
-nav button{flex:1;border:0;background:none;color:var(--mut);font-size:10px;font-weight:900;letter-spacing:.12em;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit}
+nav button{flex:1;min-width:0;border:0;background:none;color:var(--mut);font-size:9.5px;font-weight:900;letter-spacing:.05em;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit}
 nav button .ic{width:24px;height:24px;opacity:.7}
 nav button.on{color:var(--acc2)}nav button.on .ic{opacity:1}
 [hidden]{display:none!important}
@@ -51,3 +51,16 @@ input[type=checkbox]{display:inline-block;width:20px;height:20px;margin:0;accent
 .rlist button{border:0;background:none;color:var(--mut);padding:4px;display:flex}
 #ckMatch{margin:0 0 14px;font-size:13px}#ckMatch a{display:block;color:var(--acc2);font-weight:700;padding:3px 0}
 .when .ic{width:13px;height:13px}
+html,body{overflow-x:hidden}
+.row label{min-width:0}
+select,input{max-width:100%;min-width:0}
+input[type=time],input[type=datetime-local],input[type=date]{-webkit-appearance:none;appearance:none;min-height:48px;text-align:left}
+input[type=time]::-webkit-date-and-time-value,input[type=datetime-local]::-webkit-date-and-time-value{text-align:left;margin:0}
+.petcard{text-align:center}#petArt svg{width:160px;height:187px;display:block;margin:0 auto 6px}
+.pname{font-size:22px;font-weight:900;letter-spacing:.06em;word-break:break-word}
+.xp{height:8px;border-radius:6px;background:#e8d7b6;overflow:hidden}.xp i{display:block;height:100%;width:0;background:var(--acc);transition:width .4s}
+.lbl{margin:4px 0 8px;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--mut)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chips button{border:1.5px solid var(--line);background:#fffaf0;border-radius:12px;padding:9px 12px;font:inherit;font-size:13px;font-weight:700;color:var(--ink)}
+.chips button.on{border-color:var(--acc);background:#f3e1c0}.chips button:disabled{opacity:.45}
+.chips button.sw{width:38px;height:38px;border-radius:50%;padding:0}

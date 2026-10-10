@@ -2,8 +2,18 @@
 /* Sprachen: Deutsch (Quelltexte) und Englisch. tr('Deutscher Text {0}', wert) liefert den Text in der gewählten Sprache. */
 let LANG=(()=>{try{const v=JSON.parse(localStorage.getItem('sb_lang'));if(v==='de'||v==='en')return v}catch{}return /^de/i.test(navigator.language||'de')?'de':'en'})();
 const LOCALE=()=>LANG==='de'?'de-DE':'en-GB';
-const tr=(k,...a)=>((LANG==='en'&&EN[k])||k).replace(/\{(\d)\}/g,(m,i)=>a[+i]??'');
-const td=s=>LANG==='en'?(EN_DATA[s]||s):s; // Texte aus den Brotdaten (Namen, Schritte, Zutaten)
+// Erfahrung: neu (Neuling), fort (Fortgeschritten), pro (Profi); null = noch nicht gewählt
+let LEVEL=(()=>{try{const v=JSON.parse(localStorage.getItem('sb_level'));if(v==='neu'||v==='fort'||v==='pro')return v}catch{}return null})();
+// Neulinge bekommen einfachere Wörter statt Fachbegriffen
+const JG={
+  de:[[/Anstellgut \(Starter\)/g,'Starter'],[/Stückgare/g,'letzte Gehzeit'],[/Autolyse/g,'Quellzeit'],[/Anstellgut/g,'Starter'],[/\bPeak\b/g,'Höchststand'],[/Hydration/g,'Wassermenge'],[/Gärkorb/g,'Gärkörbchen (oder Schüssel mit Tuch)'],[/Krume/g,'Inneres'],[/\bGare\b/g,'Gehzeit']],
+  en:[[/final proof/gi,'last rise'],[/autolyse/gi,'soaking rest'],[/\bpeak\b/gi,'highest point'],[/hydration/gi,'water amount'],[/proofing basket/gi,'bowl lined with a cloth'],[/crumb/gi,'inside'],[/proofing/gi,'rising'],[/\bproof\b/gi,'rise']]};
+function jg(s){
+  if(LEVEL!=='neu')return s;
+  return JG[LANG].reduce((t,[re,to])=>t.replace(re,(...a)=>{const off=a[a.length-2],str=a[a.length-1],cap=off===0||/[.:!?]\s$/.test(str.slice(0,off));return cap?to[0].toUpperCase()+to.slice(1):to}),s);
+}
+const tr=(k,...a)=>jg(((LANG==='en'&&EN[k])||k).replace(/\{(\d)\}/g,(m,i)=>a[+i]??''));
+const td=s=>jg(LANG==='en'?(EN_DATA[s]||s):s); // Texte aus den Brotdaten (Namen, Schritte, Zutaten)
 
 // Statische Texte der Seite: Original merken, in der gewählten Sprache anzeigen
 function applyLang(){
@@ -13,11 +23,11 @@ function applyLang(){
     if(n.parentNode.closest('script,style,svg'))continue;
     if(n._de===undefined){if(!n.nodeValue.trim())continue;n._de=n.nodeValue}
     const key=n._de.replace(/\s+/g,' ').trim(),lead=n._de.match(/^\s*/)[0],trail=n._de.match(/\s*$/)[0];
-    n.nodeValue=LANG==='en'&&EN[key]?lead+EN[key]+trail:n._de;
+    n.nodeValue=jg(LANG==='en'&&EN[key]?lead+EN[key]+trail:n._de);
   }
   document.querySelectorAll('[placeholder],[aria-label],[alt]').forEach(e=>['placeholder','aria-label','alt'].forEach(a=>{
     if(!e.hasAttribute(a))return;const k='_de_'+a;if(e[k]===undefined)e[k]=e.getAttribute(a);
-    e.setAttribute(a,LANG==='en'&&EN[e[k]]?EN[e[k]]:e[k]);
+    e.setAttribute(a,jg(LANG==='en'&&EN[e[k]]?EN[e[k]]:e[k]));
   }));
 }
 
@@ -206,9 +216,9 @@ Object.assign(EN,{
 'Raumtemperatur (°C)':'Room temperature (°C)','PEAK-TAGEBUCH':'PEAK LOG',
 'Trag ein, wann du fütterst und wann dein Starter am höchsten steht. Daraus merkt sich LilDough, wie schnell er ist, und plant damit.':'Log when you feed and when your starter peaks. LilDough remembers how fast it is and plans with that.',
 'Verhältnis beim Füttern':'Ratio when feeding','PEAK ERREICHT':'PEAK REACHED','LETZTEN EINTRAG LÖSCHEN':'DELETE LAST ENTRY',
-'Wie im Rezept (gilt für ca. {0} °C).':'Same as in the recipe (valid for about {0} °C).',
-'Bei {0} °C dauern die Gehzeiten etwa {1} % länger als im Rezept.':'At {0} °C the rising times take about {1} % longer than in the recipe.',
-'Bei {0} °C dauern die Gehzeiten etwa {1} % kürzer als im Rezept.':'At {0} °C the rising times take about {1} % less than in the recipe.',
+'Wie im Rezept (gilt für ca. {0}).':'Same as in the recipe (valid for about {0}).',
+'Bei {0} dauern die Gehzeiten etwa {1} % länger als im Rezept.':'At {0} the rising times take about {1} % longer than in the recipe.',
+'Bei {0} dauern die Gehzeiten etwa {1} % kürzer als im Rezept.':'At {0} the rising times take about {1} % less than in the recipe.',
 'Dein Starter ist dabei eingerechnet.':'Your starter is factored in.','(Rezept: {0})':'(recipe: {0})','Erinnerung alle {0} Min':'Reminder every {0} min',
 'Trag zuerst ein, wann du gefüttert hast.':'First log when you fed.','Für diese Fütterung ist der Peak schon eingetragen.':'The peak for this feeding is already logged.',
 'Die Fütterung ist {0} Std her. Trag sie zuerst neu ein.':'The feeding was {0} h ago. Please log it again first.','Peak nach {0} Std gespeichert.':'Peak after {0} h saved.',
@@ -216,7 +226,7 @@ Object.assign(EN,{
 'Dein Starter liegt genau auf der Tabelle (aus {0} Messungen).':'Your starter matches the table exactly (from {0} measurements).',
 'Dein Starter ist ca. {0} % schneller als die Tabelle (aus {1} Messungen).':'Your starter is about {0} % faster than the table (from {1} measurements).',
 'Dein Starter ist ca. {0} % langsamer als die Tabelle (aus {1} Messungen).':'Your starter is about {0} % slower than the table (from {1} measurements).',
-'Dein Peak bei {0} °C':'Your peak at {0} °C'
+'Dein Peak bei {0}':'Your peak at {0}'
 });
 Object.assign(EN,{
 'BACK-TAGEBUCH':'BAKING JOURNAL','NEUER EINTRAG':'NEW ENTRY','Name des Brots':'Name of the bread','z. B. Dinkelbrot':'e.g. spelt bread','Bewertung':'Rating','Gesamtdauer (Std)':'Total time (h)','Notiz':'Note',
@@ -224,9 +234,62 @@ Object.assign(EN,{
 'Hier sammelst du deine Brote mit Foto, Bewertung und Notiz. Ab 3 bewerteten Broten siehst du, was bei dir am besten klappt.':'Collect your breads here with photo, rating and note. After 3 rated breads you can see what works best for you.',
 'Noch kein Brot mit 4 oder 5 Sternen (Schnitt {0}). Trag auch die Temperatur ein, dann sieht man bald, was bei dir funktioniert.':'No bread with 4 or 5 stars yet (average {0}). Log the temperature too, then it will soon show what works for you.',
 'Deine besten Brote ({0}, ab 4 Sternen) entstanden im Schnitt{1}. Durchschnitt aller Brote: {2} Sterne.':'Your best breads ({0}, 4 stars and up) were made on average{1}. Average of all breads: {2} stars.',
-'und':'and','bei {0} °C':'at {0} °C','nach {0} Std Gesamtzeit':'after {0} h total time','{0} Sterne':'{0} stars','COACH FRAGEN':'ASK COACH','Noch keine Einträge.':'No entries yet.','Diesen Eintrag löschen?':'Delete this entry?',
+'und':'and','bei {0}':'at {0}','nach {0} Std Gesamtzeit':'after {0} h total time','{0} Sterne':'{0} stars','COACH FRAGEN':'ASK COACH','Noch keine Einträge.':'No entries yet.','Diesen Eintrag löschen?':'Delete this entry?',
 'Bewerte bitte die Krume und Kruste meines Brotes ({0}) und gib mir einen Tipp.':'Please rate the crumb and crust of my bread ({0}) and give me a tip.',
 'Bitte gib dem Brot einen Namen.':'Please give the bread a name.','Eintrag gespeichert.':'Entry saved.',
 'Das Foto konnte nicht gespeichert werden (Speicher voll oder privater Modus). Der Eintrag wurde ohne Foto gespeichert.':'The photo could not be saved (storage full or private mode). The entry was saved without a photo.'
 });
 Object.assign(EN,{'bis':'to'});
+Object.assign(EN,{
+'Gemini ist gerade überlastet. Ich habe mehrere Modelle probiert. Versuch es in einer Minute noch einmal.':'Gemini is overloaded right now. I tried several models. Try again in a minute.',
+'Das Gratis-Kontingent bei Google ist gerade aufgebraucht. Warte kurz oder versuch es später noch einmal.':'The free quota at Google is used up for now. Wait a bit or try again later.',
+'Google hat den API-Key abgelehnt. Prüfe ihn oben unter „API Key“.':'Google rejected the API key. Check it above under API Key.'
+});
+Object.assign(EN,{
+'ERFAHRUNG':'EXPERIENCE','Neuling':'Beginner','Fortgeschritten':'Intermediate','Profi':'Pro','ANZEIGE':'DISPLAY','Schriftgröße':'Text size','Normal':'Normal','Groß':'Large','Einheiten':'Units',
+'Metrisch (g, °C)':'Metric (g, °C)','US (oz, °F)':'US (oz, °F)','GÄRFORMEL':'FERMENTATION FORMULA','BEGRIFFE ERKLÄRT':'TERMS EXPLAINED',
+'Standard sind 8 °C (etwa 14 °F). Kleiner heißt: dein Teig reagiert stärker auf Temperatur. Der Bezugswert für Rezepte bleibt 22 °C.':'Default is 8 °C (about 14 °F). Smaller means your dough reacts more strongly to temperature. The reference for recipes stays 22 °C.',
+'Wie gut kennst du dich mit Sauerteig aus?':'How well do you know sourdough?',
+'Danach richten sich Begriffe und Einstellungen. Du kannst das später in den Optionen ändern.':'Terms and settings follow from this. You can change it later in Settings.',
+'Ich fange gerade an. Bitte einfache Wörter und wenige Einstellungen.':'I am just starting. Please use simple words and few settings.',
+'Ich habe schon ein paar Brote gebacken und kenne die Grundbegriffe.':'I have baked a few loaves and know the basic terms.',
+'Ich kenne die Fachbegriffe und will volle Kontrolle, auch Bäckerprozente.':'I know the technical terms and want full control, including baker percentages.',
+'ZEITFENSTER':'TIME WINDOW','optional':'optional','Rezept skalieren (Faktor)':'Scale recipe (factor)','Raumtemperatur':'Room temperature','Gärung verdoppelt ihr Tempo alle ({0})':'Fermentation doubles its speed every ({0})',
+'Einfache Wörter und wenige Einstellungen. Fachbegriffe werden umschrieben.':'Simple words and few settings. Technical terms are put in plain language.',
+'Alle Funktionen. Fachbegriffe findest du unter „Begriffe erklärt“.':'All features. You can find technical terms under Terms explained.',
+'Alles, dazu Bäckerprozente, Gärformel und Skalieren eigener Rezepte.':'Everything, plus baker percentages, fermentation formula and scaling your own recipes.',
+'Starter (Anstellgut)':'Starter','Peak':'Peak','Autolyse':'Autolyse','Hydration':'Hydration','Dehnen und Falten':'Stretch and fold','Stückgare':'Final proof','Gärkorb':'Proofing basket','Krume':'Crumb','Bäckerprozente':'Baker percentages',
+'Lebendige Mischung aus Mehl und Wasser mit wilden Hefen und Milchsäurebakterien. Sie lässt das Brot aufgehen und gibt den Geschmack.':'A living mix of flour and water with wild yeast and lactic acid bacteria. It makes the bread rise and gives the flavor.',
+'Der Moment, in dem der Starter am höchsten steht. Dann ist er am aktivsten und gut zum Backen.':'The moment your starter is at its highest. Then it is most active and good for baking.',
+'Mehl und Wasser ruhen zuerst allein, ohne Starter und Salz. Das macht den Teig geschmeidiger und leichter zu formen.':'Flour and water rest first on their own, without starter and salt. This makes the dough smoother and easier to shape.',
+'Wie viel Wasser im Teig ist, in Prozent vom Mehl. Mehr Wasser gibt einen feuchteren, luftigeren Teig, der aber klebriger ist.':'How much water is in the dough, as a percentage of the flour. More water gives a wetter, airier dough that is stickier.',
+'Statt zu kneten ziehst du den Teig in Abständen kurz in die Länge und faltest ihn ein. So entsteht Struktur.':'Instead of kneading you briefly stretch the dough and fold it in at intervals. This builds structure.',
+'Die letzte Gehzeit des geformten Brotes, bevor es in den Ofen kommt. Über Nacht im Kühlschrank bringt mehr Geschmack.':'The last rise of the shaped bread before it goes into the oven. Overnight in the fridge adds flavor.',
+'Eine Form oder Schüssel mit Tuch, in der das geformte Brot geht und seine Form behält.':'A basket or bowl with a cloth in which the shaped bread rises and keeps its shape.',
+'Das Innere des Brotes.':'The inside of the bread.','Alle Zutaten als Prozent vom Mehlgewicht. Das Mehl ist immer 100 %.':'All ingredients as a percentage of the flour weight. The flour is always 100 %.',
+'Gluten':'gluten','Saaten (Sonnenblumen, Lein, Kürbis)':'seeds (sunflower, flax, pumpkin)','Walnüsse':'walnuts','Sonnenblumenkerne':'sunflower seeds','Milch (Butter)':'milk (butter)','Enthält: {0}.':'Contains: {0}.',
+'Glutenfrei gedacht. Bei Zöliakie auf zertifiziert glutenfreie Zutaten, einen glutenfreien Starter und saubere Geräte achten. Das ersetzt keine ärztliche Beratung.':'Meant to be gluten free. With coeliac disease use certified gluten free ingredients, a gluten free starter and clean equipment. This is not medical advice.',
+'Richtwerte bei {0} bis {1}. Wie lange dein Starter wirklich braucht, hängt von Mehl, Temperatur und Aktivität ab. Über das Verhältnis steuerst du die Reifezeit.':'Rough values at {0} to {1}. How long your starter really takes depends on flour, temperature and activity. The ratio lets you steer the ripening time.',
+'Wann ist mein Starter bereit?':'When is my starter ready?','Mein Starter blubbert kaum. Was tun?':'My starter hardly bubbles. What should I do?','Welches Mehl nehme ich zum Füttern?':'Which flour should I feed with?',
+'Warum ist mein Teig so klebrig?':'Why is my dough so sticky?','Wie lange soll ich den Teig verarbeiten?':'How long should I work the dough?','Kann ich den Teig mit der Maschine kneten?':'Can I knead the dough with a machine?',
+'Woran erkenne ich, dass der Teig reif ist?':'How do I know the dough is ready?','Der Teig geht kaum auf. Was tun?':'The dough hardly rises. What should I do?','Wie dehne und falte ich richtig?':'How do I stretch and fold properly?',
+'Wie forme ich den Teig richtig?':'How do I shape the dough properly?','Woran erkenne ich, dass die Gehzeit fertig ist?':'How do I know the rise is done?','Kann ich die Gehzeit im Kühlschrank verlängern?':'Can I extend the rise in the fridge?',
+'Woran sehe ich, dass das Brot durch ist?':'How can I tell the bread is done?','Die Kruste wird zu dunkel. Was tun?':'The crust gets too dark. What should I do?','Ich habe keinen Gusseisentopf. Was nun?':'I do not have a cast iron pot. What now?',
+'Warum muss das Brot auskühlen?':'Why does the bread need to cool?','Wie bewahre ich das Brot auf?':'How do I store the bread?','Wie friere ich Brot am besten ein?':'What is the best way to freeze bread?',
+'Welches Brot passt für den Anfang?':'Which bread suits a beginner?','Wie füttere ich meinen Starter richtig?':'How do I feed my starter properly?','Mein Brot wird zu flach. Woran liegt das?':'My bread comes out too flat. Why?',
+'Erklär das bitte einfacher.':'Please explain that more simply.','Was kann ich dagegen tun?':'What can I do about it?','Woran erkenne ich das beim nächsten Mal?':'How do I spot that next time?',
+'Foto prüfen':'Check photo','Chat leeren':'Clear chat','Chat wirklich leeren?':'Really clear the chat?'
+});
+Object.assign(EN_DATA,{
+'Glutenfreies Buchweizenbrot':'Gluten free buckwheat bread','Saftig, ohne Weizen, mit Flohsamenschalen':'Juicy, without wheat, with psyllium husk',
+'Buchweizenmehl':'Buckwheat flour','Hirsemehl':'Millet flour','Reismehl (Vollkorn)':'Brown rice flour','Flohsamenschalen (gemahlen)':'Psyllium husk (ground)',
+'Füttere deinen glutenfreien Starter (z. B. aus Buchweizenmehl) und stelle ihn warm, bis er sich deutlich vergrößert hat und Blasen wirft.':'Feed your gluten free starter (e.g. made with buckwheat flour) and keep it warm until it has clearly grown and is bubbly.',
+'Flohsamenschalen quellen lassen':'Let the psyllium husk swell','Flohsamenschalen mit dem Wasser verrühren und quellen lassen, bis ein Gel entsteht. Das ersetzt das Klebergerüst.':'Stir the psyllium husk into the water and let it swell until it forms a gel. It replaces the gluten network.',
+'Teig anrühren':'Mix the batter','Mehle, Salz und Starter zum Gel geben und kräftig zu einem weichen, klebrigen Teig verrühren. Er wird nicht geknetet.':'Add flours, salt and starter to the gel and stir vigorously into a soft, sticky dough. It is not kneaded.',
+'Teig in die Form geben':'Put the dough into the pan','Den Teig in eine gefettete Kastenform füllen und mit nassen Händen glatt streichen.':'Fill the dough into a greased loaf pan and smooth it with wet hands.',
+'Abgedeckt bei Raumtemperatur gehen lassen, bis der Teig sichtbar höher ist und die Oberfläche leicht einreißt.':'Let it rise covered at room temperature until the dough is visibly higher and the surface cracks slightly.',
+'Ofen vorheizen':'Preheat the oven','Ofen auf 230 Grad Ober-/Unterhitze vorheizen und eine Schale mit Wasser auf den Boden stellen.':'Preheat the oven to 230 °C (446 °F) top and bottom heat and put a dish of water on the bottom.',
+'Das Brot 15 Minuten bei 230 Grad backen, dann auf 200 Grad senken und etwa 40 Minuten fertig backen. Beim Klopfen auf die Unterseite soll es hohl klingen.':'Bake the bread for 15 minutes at 230 °C (446 °F), then lower to 200 °C (392 °F) and bake about 40 minutes more. It should sound hollow when you tap the bottom.',
+'Komplett auskühlen lassen, am besten mehrere Stunden. Glutenfreies Brot setzt sich erst beim Auskühlen und schmiert sonst.':'Let it cool completely, ideally for several hours. Gluten free bread only sets while cooling and is gummy otherwise.'
+});
+Object.assign(EN,{'Gärung verdoppelt ihr Tempo alle (°C)':'Fermentation doubles its speed every (°C)'});

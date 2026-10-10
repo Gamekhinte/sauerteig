@@ -73,5 +73,15 @@ const EXTRA_BREADS=[
     st('Stückgare',90,'Abgedeckt gehen lassen. Ofen auf 230 Grad vorheizen.'),
     st('Backen',25,'Mit den Fingern Mulden eindrücken, mit Öl, Salz und Rosmarin belegen und goldbraun backen.'),
     st('Auskühlen lassen',20,'Kurz auf einem Gitter auskühlen lassen und lauwarm genießen.')
-  ],{fl:[['Weizenmehl 550',1]],extras:[{name:'Olivenöl',pct:6}]})
+  ],{fl:[['Weizenmehl 550',1]],extras:[{name:'Olivenöl',pct:6}]}),
+  mk(9,'glutenfrei','Glutenfreies Buchweizenbrot','Saftig, ohne Weizen, mit Flohsamenschalen',60,95,20,2,[
+    st('Starter füttern',360,'Füttere deinen glutenfreien Starter (z. B. aus Buchweizenmehl) und stelle ihn warm, bis er sich deutlich vergrößert hat und Blasen wirft.'),
+    st('Flohsamenschalen quellen lassen',20,'Flohsamenschalen mit dem Wasser verrühren und quellen lassen, bis ein Gel entsteht. Das ersetzt das Klebergerüst.'),
+    st('Teig anrühren',10,'Mehle, Salz und Starter zum Gel geben und kräftig zu einem weichen, klebrigen Teig verrühren. Er wird nicht geknetet.'),
+    st('Teig in die Form geben',10,'Den Teig in eine gefettete Kastenform füllen und mit nassen Händen glatt streichen.'),
+    st('Stückgare',240,'Abgedeckt bei Raumtemperatur gehen lassen, bis der Teig sichtbar höher ist und die Oberfläche leicht einreißt.'),
+    st('Ofen vorheizen',30,'Ofen auf 230 Grad Ober-/Unterhitze vorheizen und eine Schale mit Wasser auf den Boden stellen.'),
+    st('Backen',55,'Das Brot 15 Minuten bei 230 Grad backen, dann auf 200 Grad senken und etwa 40 Minuten fertig backen. Beim Klopfen auf die Unterseite soll es hohl klingen.'),
+    st('Auskühlen lassen',180,'Komplett auskühlen lassen, am besten mehrere Stunden. Glutenfreies Brot setzt sich erst beim Auskühlen und schmiert sonst.')
+  ],{fl:[['Buchweizenmehl',.5],['Hirsemehl',.3],['Reismehl (Vollkorn)',.2]],extras:[{name:'Flohsamenschalen (gemahlen)',pct:6},{name:'Olivenöl',pct:3}]})
 ];

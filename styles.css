@@ -103,3 +103,29 @@ textarea{display:block;width:100%;margin-top:5px;padding:12px;font:inherit;font-
 .jitem .jb{flex:1;min-width:0;font-size:14px}.jitem .jt{font-weight:800}.jitem .js{color:var(--acc2);display:flex;gap:1px}.jitem .js .ic{width:14px;height:14px;fill:currentColor}.jitem .js .off{fill:none}
 .jitem .jn{margin:2px 0;word-break:break-word}.jitem .jm{font-size:12px;color:var(--mut)}
 .jitem .ja{display:flex;gap:6px;margin-top:6px}.jitem .ja button{border:1px solid var(--line);background:none;color:var(--acc2);border-radius:9px;padding:5px 9px;font:inherit;font-size:11px;font-weight:800;letter-spacing:.06em;display:flex;align-items:center;gap:4px}
+/* Erfahrungsstufen: Neuling sieht weniger, Fortgeschritten fast alles, Profi alles */
+html[data-lvl=neu] [data-min=fort],html[data-lvl=neu] [data-min=pro],html[data-lvl=fort] [data-min=pro]{display:none!important}
+/* Große Schrift */
+html[data-big="1"] body{zoom:1.18}
+/* Einstieg */
+.onb{position:fixed;inset:0;z-index:50;background:rgba(40,28,16,.72);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.onbc{background:var(--card);border-radius:20px;padding:20px;max-width:440px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.onbc h2{font-size:17px;letter-spacing:.04em;margin:14px 0 6px}
+.onbc .seg{margin-bottom:0}
+.lv{display:block;width:100%;text-align:left;margin-top:10px;padding:14px;border-radius:14px;border:1.5px solid var(--line);background:var(--inp);color:var(--ink);font:inherit}
+.lv b{display:block;font-size:15px;color:var(--acc2);margin-bottom:2px}.lv span{font-size:13px;color:var(--mut)}
+.lv:active{border-color:var(--acc)}
+.allergy:empty{display:none}
+/* Ruhezeit-Fenster */
+.qw{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;background:var(--inp)}
+.qw .row{margin-bottom:8px}.qw .row label{margin-bottom:0}
+.days{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.days button{border:1.5px solid var(--line);background:none;color:var(--mut);border-radius:9px;min-width:36px;padding:7px 4px;font:inherit;font-size:12px;font-weight:800}
+.days button.on{background:var(--chip);border-color:var(--acc);color:var(--ink)}
+.days .rm{margin-left:auto;border:0;color:var(--mut);padding:7px}
+/* Coach: Schnellfragen */
+.qrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.qrow button{border:1.5px solid var(--acc);background:none;color:var(--acc2);border-radius:14px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;text-align:left}
+.qrow button.tool{border-style:dashed;color:var(--mut);border-color:var(--line)}
+.qrow button:active{background:var(--chip)}
+.bp{font-size:11px;font-weight:700;color:var(--mut);margin-left:6px}

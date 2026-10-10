@@ -1,14 +1,22 @@
 'use strict';
 const SB_URL='https://rsirxtxeiolsaultreuz.supabase.co';
 const SB_KEY='sb_publishable_VYVOJ--pfOlhIES2swipGg_E33b0185';
-const GEMINI='https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'; // aktuelles Standard-Flash-Modell mit kostenlosem Kontingent
 const CONTACT=''; // Kontakt für die Datenschutzerklärung, z. B. 'name@example.com' (leer = Zeile wird nicht angezeigt)
 const $=id=>document.getElementById(id);
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch{return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},del:k=>{try{localStorage.removeItem(k)}catch{}}};
 const ICON=n=>`<svg class="ic"><use href="#i-${n}"/></svg>`;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let breads=[],plan=LS.get('sb_plan',null),chat=LS.get('sb_chat',[]),pend=null;
-let quiet=LS.get('sb_quiet',{on:false,from:'18:00',to:'06:00'});
+const ALLDAYS=[0,1,2,3,4,5,6];
+let quiet=LS.get('sb_quiet',null); // {on, wins:[{from,to,days}]}, bis zu 3 Zeitfenster
+if(!quiet)quiet={on:false,wins:[{from:'18:00',to:'06:00',days:ALLDAYS}]};
+else if(!quiet.wins)quiet={on:quiet.on,wins:[{from:quiet.from||'18:00',to:quiet.to||'06:00',days:ALLDAYS}]};
+let units=LS.get('sb_units','metric'); // metric oder us
+const US=()=>units==='us';
+const tUnit=()=>US()?'°F':'°C';
+const tShow=c=>US()?Math.round(c*9/5+32):Math.round(c);
+const tStr=c=>tShow(c)+' '+tUnit();           // Temperatur für Texte
+const tIn=v=>US()?(+v-32)*5/9:+v;             // Eingabe zurück nach °C
 let ck={recipes:[],folders:[],...LS.get('sb_ck',{})};
 ck.recipes.forEach(r=>{delete r.data;r.notes=r.notes||{ing:'',steps:''}}); // frühere, von Fremdseiten geladene Rezepttexte werden nicht mehr gespeichert
 applyLang(); // statische Texte in der gewählten Sprache
@@ -41,7 +49,7 @@ async function loadBreads(){
   fillSelects();render();
 }
 // Rezepte, die zu einer Brotsorte passen (Stichwörter im Rezepttitel)
-const KW={weizen:['weizen','weißbrot','baguette'],dinkel:['dinkel'],roggen:['roggen','bauernbrot'],vollkorn:['vollkorn'],koerner:['körner','saaten','mehrkorn'],mischbrot:['mischbrot'],walnuss:['walnuss'],kartoffel:['kartoffel'],sonnenblumen:['sonnenblume'],ciabatta:['ciabatta'],baguette:['baguette'],broetchen:['brötchen','semmel'],focaccia:['focaccia']};
+const KW={glutenfrei:['glutenfrei'],weizen:['weizen','weißbrot','baguette'],dinkel:['dinkel'],roggen:['roggen','bauernbrot'],vollkorn:['vollkorn'],koerner:['körner','saaten','mehrkorn'],mischbrot:['mischbrot'],walnuss:['walnuss'],kartoffel:['kartoffel'],sonnenblumen:['sonnenblume'],ciabatta:['ciabatta'],baguette:['baguette'],broetchen:['brötchen','semmel'],focaccia:['focaccia']};
 const match=b=>{const k=KW[b.slug]||[b.name.toLowerCase()];return ck.recipes.filter(r=>k.some(w=>r.title.toLowerCase().includes(w)))};
 function fillSelects(){
   const own=breads.filter(b=>!b.raw),raws=breads.filter(b=>b.raw),sc=Object.fromEntries(own.map(b=>[b.slug,match(b).length]));
@@ -53,21 +61,23 @@ function fillSelects(){
 const getBread=s=>breads.find(b=>b.slug===s);
 function showInfo(){
   const b=getBread($('bread').value);if(!b){$('breadInfo').textContent='';$('ckMatch').innerHTML='';return}
-  $('persons').parentElement.hidden=!!b.raw;
+  $('amountRow').hidden=!!b.raw;$('scaleL').hidden=!b.raw;$('allergy').textContent=b.raw?'':allergyText(b);
   if(b.raw){
     const n=b.raw.starterG,r=RATIOS[1],a=Math.max(1,Math.ceil(n/(1+2*r[0])));$('ckMatch').innerHTML='';
     $('breadInfo').textContent=tr('Eigenes Rezept · {0} Schritte. Die Dauer der Schritte wurde aus deinem Text abgelesen und kann abweichen.',b.bread_steps.length)
       +(n?' '+tr('Das Rezept braucht ca. {0} g Starter. Füttere dafür z. B. {1} g Anstellgut mit {2} Wasser und {3} Mehl ({4}).',n,a,fmt(a*r[0]),fmt(a*r[0]),rLbl(r)):'');
     return;
   }
-  $('breadInfo').textContent=tr('{0}. Teig: {1}% Wasser, {2}% Starter, {3}% Salz (bezogen auf das Mehl).',td(b.tagline),b.hydration_pct,b.starter_pct,b.salt_pct)+' '+(fit(b)||'');
+  $('breadInfo').textContent=tr('{0}. Teig: {1}% Wasser, {2}% Starter, {3}% Salz (bezogen auf das Mehl).',td(b.tagline),b.hydration_pct,b.starter_pct,b.salt_pct)+(LEVEL==='neu'?'':' '+(fit(b)||''));
   const m=match(b).slice(0,3);
   $('ckMatch').innerHTML=m.length?`<p class="muted" style="margin:0 0 4px">${esc(tr('Aus deinen Rezepten:'))}</p>`+m.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener">${ICON('link')} ${esc(r.title)}</a>`).join(''):'';
 }
 $('bread').onchange=showInfo;
 
 /* ---------- Mengen ---------- */
-const fmt=g=>g<10?g.toFixed(1).replace('.',LANG==='de'?',':'.')+' g':Math.round(g)+' g';
+const dec=x=>String(x).replace('.',LANG==='de'?',':'.');
+const fmtG=g=>g<10?dec(g.toFixed(1))+' g':Math.round(g)+' g';
+const fmt=g=>{if(!US())return fmtG(g);const oz=g/28.3495;return (oz>=16?dec(+(oz/16).toFixed(2))+' lb':dec(+oz.toFixed(oz<10?1:0))+' oz')+' ('+fmtG(g)+')'};
 function ingredients(b,flour){
   const L=[];
   if(b.fl)b.fl.forEach(([n,s])=>L.push({n,g:flour*s}));
@@ -78,7 +88,8 @@ function ingredients(b,flour){
   return L;
 }
 const ingName=n=>n==='Sauerteig-Starter (aktiv)'&&pet.active?tr('Starter {0} (aktiv)',pet.name):td(n);
-const ingHTML=L=>L.map(i=>`<div><span>${esc(ingName(i.n))}</span><b>${fmt(i.g)}</b></div>`).join('');
+const ingHTML=L=>{const w=L.findIndex(i=>i.n==='Wasser (lauwarm)'),fl=w>0?L.slice(0,w).reduce((s,i)=>s+i.g,0):0;
+  return L.map(i=>`<div><span>${esc(ingName(i.n))}</span><b>${fmt(i.g)}${LEVEL==='pro'&&fl?`<span class="bp">${dec(Math.round(i.g/fl*1000)/10)} %</span>`:''}</b></div>`).join('')};
 const persons=n=>`${n} ${n==1?tr('Person'):tr('Personen')}`;
 
 /* ---------- Rechner ---------- */
@@ -127,23 +138,38 @@ function waterGuide(){
 /* ---------- Ruhezeit ---------- */
 const toMin=s=>{const [h,m]=s.split(':');return +h*60+ +m};
 // Schiebt einen Zeitpunkt aus der Ruhezeit auf deren Ende
+// Ende des Ruhefensters, in dem t liegt (Fenster gelten an den gewählten Wochentagen, über Mitternacht zählt der Starttag), sonst null
+function quietEnd(t){
+  const d=new Date(t),m=d.getHours()*60+d.getMinutes(),dow=d.getDay();let best=null;
+  for(const w of quiet.wins){
+    const f=toMin(w.from),e=toMin(w.to),days=w.days||ALLDAYS;if(f===e)continue;
+    let inside=false,next=false;
+    if(f<e)inside=m>=f&&m<e&&days.includes(dow);
+    else if(m>=f){inside=days.includes(dow);next=true}
+    else if(m<e)inside=days.includes((dow+6)%7);
+    if(!inside)continue;
+    const r=new Date(t);r.setHours(Math.floor(e/60),e%60,0,0);if(next)r.setDate(r.getDate()+1);
+    if(best===null||r.getTime()>best)best=r.getTime();
+  }
+  return best;
+}
 function adj(t){
   if(!quiet.on)return t;
-  const f=toMin(quiet.from),e=toMin(quiet.to);if(f===e)return t;
-  const d=new Date(t),m=d.getHours()*60+d.getMinutes();
-  if(!(f<e?(m>=f&&m<e):(m>=f||m<e)))return t;
-  const r=new Date(t);r.setHours(Math.floor(e/60),e%60,0,0);
-  if(r.getTime()<=t)r.setDate(r.getDate()+1);
-  return r.getTime();
+  for(let k=0;k<12;k++){const e=quietEnd(t);if(e===null)return t;t=e}
+  return t;
 }
+const saveQuiet=()=>{LS.set('sb_quiet',quiet);quietUI();render();preview()};
 function quietUI(){
-  $('qOn').checked=quiet.on;$('qFrom').value=quiet.from;$('qTo').value=quiet.to;
-  $('qTimes').style.opacity=quiet.on?1:.5;
+  $('qOn').checked=quiet.on;$('qWins').style.opacity=quiet.on?1:.5;$('qAdd').hidden=quiet.wins.length>=3;
+  const dn=ALLDAYS.map(i=>new Date(2024,0,7+i).toLocaleDateString(LOCALE(),{weekday:'short'}).slice(0,2)); // 7.1.2024 war ein Sonntag
+  $('qWins').innerHTML=quiet.wins.map((w,i)=>`<div class="qw"><div class="row"><label>${esc(tr('Von'))}<input type="time" data-q="from" data-i="${i}" value="${w.from}"></label><label>${esc(tr('Bis'))}<input type="time" data-q="to" data-i="${i}" value="${w.to}"></label></div><div class="days">${[1,2,3,4,5,6,0].map(d=>`<button type="button" data-d="${d}" data-i="${i}" class="${w.days.includes(d)?'on':''}">${esc(dn[d])}</button>`).join('')}${quiet.wins.length>1?`<button type="button" class="rm" data-rm="${i}" aria-label="${esc(tr('Entfernen'))}">${ICON('trash')}</button>`:''}</div></div>`).join('');
+  const W=$('qWins');
+  W.querySelectorAll('input[data-q]').forEach(x=>x.onchange=()=>{if(x.value){quiet.wins[+x.dataset.i][x.dataset.q]=x.value;saveQuiet()}});
+  W.querySelectorAll('button[data-d]').forEach(x=>x.onclick=()=>{const w=quiet.wins[+x.dataset.i],d=+x.dataset.d;w.days=w.days.includes(d)?(w.days.length>1?w.days.filter(y=>y!==d):w.days):[...w.days,d];saveQuiet()});
+  W.querySelectorAll('button[data-rm]').forEach(x=>x.onclick=()=>{quiet.wins.splice(+x.dataset.rm,1);saveQuiet()});
 }
-['qOn','qFrom','qTo'].forEach(id=>$(id).addEventListener('change',()=>{
-  quiet={on:$('qOn').checked,from:$('qFrom').value||quiet.from,to:$('qTo').value||quiet.to};
-  LS.set('sb_quiet',quiet);quietUI();render();preview();
-}));
+$('qOn').addEventListener('change',()=>{quiet.on=$('qOn').checked;saveQuiet()});
+$('qAdd').onclick=()=>{if(quiet.wins.length<3){quiet.wins.push({from:'12:00',to:'14:00',days:[...ALLDAYS]});saveQuiet()}};
 
 /* ---------- Plan ---------- */
 // Fütterungsverhältnisse: [Teile Mehl/Wasser je Teil Anstellgut, Peak von Std, Peak bis Std, Hinweis]
@@ -179,7 +205,7 @@ let mode='start';
 /* Gehzeiten an Raumtemperatur und Starter anpassen. Rezepte gelten bei ca. 22 °C; die Gärung verdoppelt ihr Tempo etwa alle 8 °C. */
 let temp=LS.get('sb_temp',22);
 const TREF=22;
-const tempFactor=t=>Math.min(2.2,Math.max(.5,Math.pow(2,(TREF-t)/8)));
+const tempFactor=t=>Math.min(2.2,Math.max(.5,Math.pow(2,(TREF-t)/LS.get('sb_q',8))));
 // Persönliche Starter-Geschwindigkeit aus den eingetragenen Peaks (1 = wie in der Tabelle). Erst mit mehreren Messungen voll wirksam.
 function petSpeed(){
   const L=(pet.active&&pet.log||[]).slice(-8);if(!L.length)return 1;
@@ -204,17 +230,18 @@ function overFor(b,ratio,tempC,fromIdx=0){
 }
 function tempNote(){
   const f=tempFactor(temp),sp=petSpeed(),p=Math.round((f*sp-1)*100);
-  return (Math.abs(p)<3?tr('Wie im Rezept (gilt für ca. {0} °C).',TREF):p>0?tr('Bei {0} °C dauern die Gehzeiten etwa {1} % länger als im Rezept.',temp,p):tr('Bei {0} °C dauern die Gehzeiten etwa {1} % kürzer als im Rezept.',temp,-p))
+  return (Math.abs(p)<3?tr('Wie im Rezept (gilt für ca. {0}).',tStr(TREF)):p>0?tr('Bei {0} dauern die Gehzeiten etwa {1} % länger als im Rezept.',tStr(temp),p):tr('Bei {0} dauern die Gehzeiten etwa {1} % kürzer als im Rezept.',tStr(temp),-p))
     +(sp!==1?' '+tr('Dein Starter ist dabei eingerechnet.'):'');
 }
 function setTemp(v){
-  v=Math.round(+v);if(!(v>=5&&v<=40))return;temp=v;LS.set('sb_temp',v);
-  document.querySelectorAll('.tempIn').forEach(i=>{if(document.activeElement!==i)i.value=v});
+  v=Math.round(tIn(v));if(!(v>=5&&v<=40))return;temp=v;LS.set('sb_temp',v);
+  document.querySelectorAll('.tempIn').forEach(i=>{if(document.activeElement!==i)i.value=tShow(v)});
   document.querySelectorAll('.tempNote').forEach(e=>e.textContent=tempNote());
   if(plan){const keep=Object.fromEntries(Object.entries(plan.over||{}).filter(([i])=>+i<=plan.idx)),fut=overFor(getBread(plan.slug),'',v,plan.idx+1);plan.temp=v;plan.over=Object.keys({...keep,...fut}).length?{...keep,...fut}:null;LS.set('sb_plan',plan);render()}
   preview();feedGuide();
 }
 document.querySelectorAll('.tempIn').forEach(i=>i.addEventListener('change',()=>setTemp(i.value)));
+function tempLabels(){document.querySelectorAll('.tempLbl').forEach(e=>e.textContent=tr('Raumtemperatur')+' ('+tUnit()+')')}
 const setupBread=()=>{const b=getBread($('bread').value);if(!b)return null;
   const from=+$('fromStep').value||0,ri=$('ratio').value,o=overFor(b,from===0?ri:'',temp);
   return {b:withOver(b,o),over:o,from,ratio:ri===''?null:+ri}};
@@ -249,11 +276,11 @@ $('mStart').onclick=()=>setMode('start');$('mEnd').onclick=()=>setMode('end');
 $('start').addEventListener('input',preview);
 $('makePlan').onclick=()=>{
   const s=setupBread();if(!s)return;const b=getBread($('bread').value);
-  const n=Math.round(+$('persons').value);if(!b.raw&&!(n>=1))return toast(tr('Bitte die Personenzahl eingeben.'));
+  const n=Math.round(+$('persons').value),fg=Math.round(+$('flourG').value);if(!b.raw&&!(n>=1)&&!(fg>=50))return toast(tr('Bitte die Personenzahl eingeben.'));
   const rawIn=new Date($('start').value).getTime()||Date.now(),goal=$('goal').value;let raw=rawIn,note='';
   if(mode==='end'){raw=startFor(s.b,goal,s.from,rawIn);if(raw<Date.now()){raw=Date.now();note=tr('Bis dahin reicht die Zeit nicht ganz: {0} erst um {1}.',goalName(goal),hhmm(milestone(s.b,goal,s.from,raw)))}}
   const st=adj(raw);
-  plan={slug:b.slug,persons:Math.min(n||1,50),starts:[...Array(s.from).fill(st),st],idx:s.from,fired:[],over:s.over,temp,ratio:s.ratio,goal:mode==='end'?{type:goal,t:rawIn}:null};
+  plan={slug:b.slug,persons:Math.min(n||1,50),flour:fg>=50?Math.min(fg,5000):0,scale:b.raw?Math.max(.1,Math.min(20,+$('scale').value||1)):1,starts:[...Array(s.from).fill(st),st],idx:s.from,fired:[],over:s.over,temp,ratio:s.ratio,goal:mode==='end'?{type:goal,t:rawIn}:null};
   LS.set('sb_plan',plan);render();
   if(note)toast(note);
   // Berechtigungen müssen per Tipp angefragt werden: jetzt Ton freischalten und ggf. Benachrichtigungen erfragen
@@ -285,9 +312,9 @@ function render(){
   $('setup').hidden=!!b;$('plan').hidden=!b;
   keepAwake();notifState();syncPush();
   if(!b)return;
-  const flour=plan.persons*b.flour_per_person_g;
-  $('planTitle').textContent=b.raw?b.name:`${td(b.name)} · ${persons(plan.persons)}`;
-  $('planIngr').innerHTML=b.raw?b.raw.ingredients.map(l=>`<div><span>${esc(l)}</span></div>`).join(''):ingHTML(ingredients(b,flour));
+  const flour=plan.flour||plan.persons*b.flour_per_person_g;
+  $('planTitle').textContent=b.raw?b.name+(plan.scale&&plan.scale!==1?' ×'+dec(plan.scale):''):`${td(b.name)} · ${plan.flour?fmt(plan.flour)+' '+tr('Mehl'):persons(plan.persons)}`;
+  $('planIngr').innerHTML=b.raw?b.raw.ingredients.map(l=>`<div><span>${esc(scaleLine(l,plan.scale||1))}</span></div>`).join(''):ingHTML(ingredients(b,flour));
   $('planFit').textContent=fit(b)||'';
   {const g=plan.goal,ty=g?g.type:'eat',eta=milestone(b,ty,plan.idx,plan.starts[plan.idx]),late=g&&eta>g.t+5*6e4;
     $('planEta').textContent=(g?tr('Ziel: {0} um {1}.',goalName(ty),hhmm(g.t))+' ':'')+tr('Voraussichtlich: {0} {1}.',goalName(ty),hhmm(eta))
@@ -300,7 +327,7 @@ function render(){
     h+=`<div class="step ${cls}"><div class="t"><span><span class="n">${i+1}</span>${esc(td(s.title))}</span><span class="when">${when}</span></div>`;
     if(i===plan.idx){
       const end=stepEnd(s,plan.starts[i]),late=end!==plan.starts[i]+s.minutes*6e4;
-      h+=`<p>${esc(td(s.description))}</p><div class="count" id="count">--:--</div><p class="muted">${esc(durTxt(s,i))}${/Falten/.test(s.title)?' · '+esc(tr('Erinnerung alle {0} Min',foldGap(s))):''}</p>${late?`<p class="muted">${ICON('moon')} ${esc(tr('Wegen der Ruhezeit erst um {0}.',hhmm(end)))}</p>`:''}<button class="btn" id="doneBtn">${esc(i===S.length-1?tr('FERTIG, GUTEN APPETIT'):tr('SCHRITT ERLEDIGT'))}</button>`;
+      h+=`<p>${esc(td(s.description))}</p><div class="count" id="count" role="timer" aria-live="off">--:--</div><p class="muted">${esc(durTxt(s,i))}${/Falten/.test(s.title)?' · '+esc(tr('Erinnerung alle {0} Min',foldGap(s))):''}</p>${late?`<p class="muted">${ICON('moon')} ${esc(tr('Wegen der Ruhezeit erst um {0}.',hhmm(end)))}</p>`:''}<button class="btn" id="doneBtn">${esc(i===S.length-1?tr('FERTIG, GUTEN APPETIT'):tr('SCHRITT ERLEDIGT'))}</button>`;
     }else if(i>plan.idx)h+=`<p class="muted" style="margin:4px 0 0">${esc(durTxt(s,i))}</p>`;
     h+='</div>';
   });
@@ -525,7 +552,7 @@ function drawChat(){
     if(m.t){const s=document.createElement('span');s.textContent=m.t;d.appendChild(s)}
     log.appendChild(d);
   });
-  log.scrollTop=1e9;
+  log.scrollTop=1e9;coachChips();
 }
 // Foto klein rechnen: bis 384 px Kantenlänge zählt Gemini pauschal ca. 258 Tokens
 function shrink(f,max=384,q=.6){return new Promise((ok,no)=>{ // f: Datei oder Bild-Adresse
@@ -540,32 +567,55 @@ $('imgBtn').onclick=()=>$('imgIn').click();
 $('imgIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
   try{setPend(await shrink(f))}catch{toast(tr('Das Bild konnte nicht gelesen werden.'))}};
 $('pendX').onclick=()=>setPend(null);
+// Mehrere Modelle der Reihe nach: ist eines überlastet (503) oder das Kontingent leer (429), springt die App zum nächsten.
+const MODELS=['gemini-3.8-flash','gemini-3.7-flash','gemini-2.5-flash','gemini-3.5-flash-lite'];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function coachError(msg){
+  const e=new Error(/high demand|overload|unavailable|busy|upstream/i.test(msg)?tr('Gemini ist gerade überlastet. Ich habe mehrere Modelle probiert. Versuch es in einer Minute noch einmal.')
+    :/quota|rate|exhaust|resource/i.test(msg)?tr('Das Gratis-Kontingent bei Google ist gerade aufgebraucht. Warte kurz oder versuch es später noch einmal.')
+    :/api key|permission|invalid|expired|denied/i.test(msg)?tr('Google hat den API-Key abgelehnt. Prüfe ihn oben unter „API Key“.')
+    :tr('Fehler: {0}',msg));e.friendly=true;return e;
+}
+async function geminiDirect(k,sys,hist){
+  let last='';
+  for(const m of MODELS){
+    for(let a=0;a<2;a++){
+      const ask=gc=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist,generationConfig:gc})});
+      let r,j;
+      try{
+        // Gemini 3.x lässt Denken nicht ganz abschalten: "low" spart Tokens. Wird die Einstellung abgelehnt, ohne sie wiederholen.
+        r=await ask({maxOutputTokens:1200,thinkingConfig:{thinkingLevel:'low'}});j=await r.json();
+        if(!r.ok&&/think/i.test(j.error?.message||'')){r=await ask({maxOutputTokens:1200});j=await r.json()}
+      }catch{last='network';await sleep(800);continue}
+      if(r.ok)return j.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||tr('(keine Antwort)');
+      last=j.error?.message||String(r.status);
+      if(r.status===401||r.status===403||(r.status===400&&/api key/i.test(last)))throw coachError(last);
+      if(r.status===404||r.status===429)break;               // Modell unbekannt oder Kontingent leer: nächstes Modell
+      if(r.status>=500&&a===0){await sleep(1200);continue}   // kurz überlastet: einmal wiederholen
+      break;
+    }
+  }
+  throw coachError(last||'unavailable');
+}
 // Eigener Key: direkt an Google. Ohne Key: über den Server der App (mit Tageslimit), falls eingerichtet.
 async function askCoach(sys,hist){
   const k=LS.get('sb_key','');
-  if(k){
-    // Gemini 3.x lässt Denken nicht ganz abschalten: "low" spart Tokens. Falls die Einstellung abgelehnt wird, ohne sie wiederholen.
-    const ask=gc=>fetch(GEMINI,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist,generationConfig:gc})});
-    let r=await ask({maxOutputTokens:1200,thinkingConfig:{thinkingLevel:'low'}}),j=await r.json();
-    if(!r.ok&&/think/i.test(j.error?.message||'')){r=await ask({maxOutputTokens:1200});j=await r.json()}
-    if(!r.ok)throw new Error(j.error?.message||r.status);
-    return j.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||tr('(keine Antwort)');
-  }
+  if(k)return geminiDirect(k,sys,hist);
   let r,j;
   try{r=await fetch(SB_URL+'/functions/v1/coach',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY},body:JSON.stringify({device:devId(),system:sys,contents:hist})});j=await r.json()}
   catch{throw new Error('NOKEY')}
-  if(r.status===429)throw new Error(tr('Das Tageslimit des App-Coachs ist erreicht. Trage deinen eigenen Key ein, dann gibt es kein Limit.'));
-  if(!r.ok||j.error)throw new Error(j.error==='not_configured'||r.status===404||r.status===503?'NOKEY':(j.error||r.status));
+  if(r.status===429)throw Object.assign(new Error(tr('Das Tageslimit des App-Coachs ist erreicht. Trage deinen eigenen Key ein, dann gibt es kein Limit.')),{friendly:true});
+  if(j.error==='not_configured'||r.status===404)throw new Error('NOKEY');
+  if(!r.ok||j.error)throw coachError(String(j.error||r.status));
   return j.text||tr('(keine Antwort)');
-}
-async function send(){
+}async function send(){
   const q=$('chatIn').value.trim();if(!q&&!pend)return;
   const img=pend;$('chatIn').value='';setPend(null);
   chat.push({r:'u',t:q,img:!!img,p:img||undefined});chat.push({r:'a',t:'…'});drawChat();$('chatSend').disabled=true;
   const b=pb(),rec=ck.recipes.slice(0,5).map(r=>r.title).join('; ');
   const sys=(LANG==='de'?'Du bist ein freundlicher, erfahrener Sauerteig-Bäcker. Antworte auf Deutsch, kurz und praktisch. Schreib wie ein normaler Mensch: keine Gedankenstriche, keine Emojis, keine Floskeln wie „Gerne!“ oder „Gute Frage!“, keine Aufzählungen, wenn zwei Sätze reichen.':'You are a friendly, experienced sourdough baker. Answer in English, briefly and practically. Write like a normal person: no dashes, no emojis, no filler like "Sure!" or "Great question!", no bullet lists when two sentences do.')
     +(b?(LANG==='de'?` Die Person backt gerade: ${b.name} für ${plan.persons} Personen, aktueller Schritt: ${b.bread_steps[plan.idx].title}.`:` The person is baking: ${td(b.name)} for ${plan.persons} people, current step: ${td(b.bread_steps[plan.idx].title)}.`):'')
-    +(pet.active?(LANG==='de'?` Ihr Starter heißt ${pet.name}.`:` Their starter is called ${pet.name}.`):'')
+    +lvNote()+(pet.active?(LANG==='de'?` Ihr Starter heißt ${pet.name}.`:` Their starter is called ${pet.name}.`):'')
     +(activeRec()?(LANG==='de'?` Aktuelles eigenes Rezept: ${activeRec().name}.`:` Current own recipe: ${activeRec().name}.`):'')
     +(rec?(LANG==='de'?` Gemerkte Rezepte: ${rec}.`:` Saved recipes: ${rec}.`):'');
   // Verlauf nur als Text (Fotos werden nie erneut gesendet), kurz gehalten
@@ -578,7 +628,7 @@ async function send(){
   try{last.t=await askCoach(sys,hist)}
   catch(e){
     if(e.message==='NOKEY'){chat.splice(-2,2);if(q)$('chatIn').value=q;if(img)setPend(img);$('keyBox').open=true;toast(tr('Bitte zuerst oben deinen Gemini API Key speichern.'))}
-    else{last.t=tr('Fehler: {0}',e.message);last.e=1}
+    else{last.t=e.friendly?e.message:tr('Fehler: {0}',e.message);last.e=1}
   }
   chat=chat.slice(-30);LS.set('sb_chat',chat.map(({p,...m})=>m));drawChat();$('chatSend').disabled=false;
 }
@@ -647,7 +697,7 @@ function drawPeaks(){
   $('peakInfo').textContent=!L.length?tr('Noch keine Peaks eingetragen. Tippe auf „Peak erreicht“, sobald dein Starter am höchsten steht.')
     :Math.abs(p)<3?tr('Dein Starter liegt genau auf der Tabelle (aus {0} Messungen).',L.length)
     :p<0?tr('Dein Starter ist ca. {0} % schneller als die Tabelle (aus {1} Messungen).',-p,L.length):tr('Dein Starter ist ca. {0} % langsamer als die Tabelle (aus {1} Messungen).',p,L.length);
-  $('peakList').innerHTML=L.slice(-5).reverse().map(e=>`<div><span>${rLbl(RATIOS[e.r]||RATIOS[1])} · ${e.t} °C</span><b>${String(e.h).replace('.',LANG==='de'?',':'.')} ${esc(tr('Std'))}</b></div>`).join('');
+  $('peakList').innerHTML=L.slice(-5).reverse().map(e=>`<div><span>${rLbl(RATIOS[e.r]||RATIOS[1])} · ${tStr(e.t)}</span><b>${String(e.h).replace('.',LANG==='de'?',':'.')} ${esc(tr('Std'))}</b></div>`).join('');
   $('peakUndo').hidden=!L.length;
 }
 $('feedRatio').addEventListener('change',()=>{pet.lastRatio=+$('feedRatio').value;savePet()});
@@ -676,7 +726,7 @@ function feedGuide(){
   const r=RATIOS[+$('gRatio').value],a=parseFloat($('gAsg').value);
   if(!(a>0)){$('gRes').innerHTML='';$('gTip').textContent=tr('Gib die Menge Anstellgut ein.');return}
   const x=a*r[0],row=(n,v)=>`<div><span>${esc(n)}</span><b>${fmt(v)}</b></div>`;
-  $('gRes').innerHTML=row(tr('Anstellgut (Starter)'),a)+row(tr('Wasser'),x)+row(tr('Mehl'),x)+row(tr('Gesamt'),a+2*x)+`<div><span>${esc(tr('Peak nach'))}</span><b>${r[1]} ${esc(tr('bis'))} ${r[2]} ${esc(tr('Std'))}</b></div>`+(tempFactor(temp)*petSpeed()!==1?`<div><span>${esc(tr('Dein Peak bei {0} °C',temp))}</span><b>${(r[1]*tempFactor(temp)*petSpeed()).toFixed(1)} ${esc(tr('bis'))} ${(r[2]*tempFactor(temp)*petSpeed()).toFixed(1)} ${esc(tr('Std'))}</b></div>`:'');
+  $('gRes').innerHTML=row(tr('Anstellgut (Starter)'),a)+row(tr('Wasser'),x)+row(tr('Mehl'),x)+row(tr('Gesamt'),a+2*x)+`<div><span>${esc(tr('Peak nach'))}</span><b>${r[1]} ${esc(tr('bis'))} ${r[2]} ${esc(tr('Std'))}</b></div>`+(tempFactor(temp)*petSpeed()!==1?`<div><span>${esc(tr('Dein Peak bei {0}',tStr(temp)))}</span><b>${(r[1]*tempFactor(temp)*petSpeed()).toFixed(1)} ${esc(tr('bis'))} ${(r[2]*tempFactor(temp)*petSpeed()).toFixed(1)} ${esc(tr('Std'))}</b></div>`:'');
   $('gTip').textContent=tr(r[3]);
 }
 ['gRatio','gAsg'].forEach(id=>$(id).addEventListener('input',feedGuide));
@@ -700,14 +750,14 @@ function jInsight(){
   const m=k=>{const v=good.map(e=>e[k]).filter(x=>x>0);return v.length?Math.round(v.reduce((s,x)=>s+x,0)/v.length*10)/10:null};
   const t=m('temp'),h=m('hours');
   return tr('Deine besten Brote ({0}, ab 4 Sternen) entstanden im Schnitt{1}. Durchschnitt aller Brote: {2} Sterne.',good.length,
-    (t?' '+tr('bei {0} °C',String(t).replace('.',LANG==='de'?',':'.')):'')+(h?(t?' '+tr('und')+' ':' ')+tr('nach {0} Std Gesamtzeit',String(h).replace('.',LANG==='de'?',':'.')):''),avg);
+    (t?' '+tr('bei {0}',tStr(t)):'')+(h?(t?' '+tr('und')+' ':' ')+tr('nach {0} Std Gesamtzeit',String(h).replace('.',LANG==='de'?',':'.')):''),avg);
 }
 async function drawJournal(){
   $('jInfo').textContent=jInsight();
   $('jNew').hidden=!$('jForm').hidden;
   $('jStars').innerHTML=[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${jRating>=n?'on':''}" aria-label="${esc(tr('{0} Sterne',n))}">${star(true)}</button>`).join('');
   $('jStars').querySelectorAll('button').forEach(b=>b.onclick=()=>{jRating=jRating===+b.dataset.n?0:+b.dataset.n;drawJournal()});
-  $('jList').innerHTML=jr.length?jr.map(e=>`<div class="jitem" data-id="${e.id}">${e.photo?`<img alt="" data-ph="${e.id}">`:''}<div class="jb"><div class="jt">${esc(td(e.bread))}</div><div class="js">${[1,2,3,4,5].map(n=>star(e.rating>=n)).join('')}</div>${e.note?`<div class="jn">${esc(e.note)}</div>`:''}<div class="jm">${new Date(e.at).toLocaleDateString(LOCALE(),{day:'numeric',month:'short',year:'numeric'})}${e.temp?' · '+e.temp+' °C':''}${e.hours?' · '+String(e.hours).replace('.',LANG==='de'?',':'.')+' '+esc(tr('Std')):''}</div><div class="ja">${e.photo?`<button data-ask="${e.id}">${ICON('chat')} ${esc(tr('COACH FRAGEN'))}</button>`:''}<button data-del="${e.id}" aria-label="${esc(tr('Entfernen'))}">${ICON('trash')}</button></div></div></div>`).join('')
+  $('jList').innerHTML=jr.length?jr.map(e=>`<div class="jitem" data-id="${e.id}">${e.photo?`<img alt="" data-ph="${e.id}">`:''}<div class="jb"><div class="jt">${esc(td(e.bread))}</div><div class="js">${[1,2,3,4,5].map(n=>star(e.rating>=n)).join('')}</div>${e.note?`<div class="jn">${esc(e.note)}</div>`:''}<div class="jm">${new Date(e.at).toLocaleDateString(LOCALE(),{day:'numeric',month:'short',year:'numeric'})}${e.temp?' · '+tStr(e.temp):''}${e.hours?' · '+String(e.hours).replace('.',LANG==='de'?',':'.')+' '+esc(tr('Std')):''}</div><div class="ja">${e.photo?`<button data-ask="${e.id}">${ICON('chat')} ${esc(tr('COACH FRAGEN'))}</button>`:''}<button data-del="${e.id}" aria-label="${esc(tr('Entfernen'))}">${ICON('trash')}</button></div></div></div>`).join('')
     :`<p class="muted" style="margin:8px 0 0">${esc(tr('Noch keine Einträge.'))}</p>`;
   $('jList').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
     if(!confirm(tr('Diesen Eintrag löschen?')))return;const id=b.dataset.del;jr=jr.filter(e=>e.id!==id);LS.set('sb_journal',jr);try{await photoDel(id)}catch{}drawJournal()});
@@ -718,7 +768,7 @@ async function drawJournal(){
 }
 function openJournal(d){
   jRating=0;jPhotoData=null;$('jPrev').hidden=true;$('jNote').value='';
-  $('jBread').value=d&&d.bread?td(d.bread):'';$('jTemp').value=d&&d.temp?d.temp:temp;$('jHours').value=d&&d.hours?d.hours:'';
+  $('jBread').value=d&&d.bread?td(d.bread):'';$('jTemp').value=tShow(d&&d.temp?d.temp:temp);$('jHours').value=d&&d.hours?d.hours:'';
   $('jForm').hidden=false;drawJournal();$('jForm').scrollIntoView({behavior:'smooth',block:'center'});
 }
 $('jNew').onclick=()=>openJournal(jDraft);
@@ -728,12 +778,91 @@ $('jPhoto').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f
   try{jPhotoData=await shrink(f,900,.72);$('jPrev').src=jPhotoData;$('jPrev').hidden=false}catch{toast(tr('Das Bild konnte nicht gelesen werden.'))}};
 $('jSave').onclick=async()=>{
   const name=$('jBread').value.trim();if(!name)return toast(tr('Bitte gib dem Brot einen Namen.'));
-  const e={id:'j'+Date.now().toString(36),at:Date.now(),bread:name,rating:jRating,temp:Math.round(+$('jTemp').value)||0,hours:Math.round((+$('jHours').value||0)*10)/10,note:$('jNote').value.trim().slice(0,400),photo:false};
+  const e={id:'j'+Date.now().toString(36),at:Date.now(),bread:name,rating:jRating,temp:Math.round(tIn($('jTemp').value))||0,hours:Math.round((+$('jHours').value||0)*10)/10,note:$('jNote').value.trim().slice(0,400),photo:false};
   let msg=tr('Eintrag gespeichert.');
   if(jPhotoData){try{await photoPut(e.id,jPhotoData);e.photo=true}catch{msg=tr('Das Foto konnte nicht gespeichert werden (Speicher voll oder privater Modus). Der Eintrag wurde ohne Foto gespeichert.')}}
   jr=[e,...jr].slice(0,100);LS.set('sb_journal',jr);jDraft=null;LS.del('sb_jdraft');
   $('jForm').hidden=true;drawJournal();toast(msg);
 };
+
+/* ---------- Erfahrungsstufe, Anzeige, Einheiten, Begriffe ---------- */
+const LV_INFO={neu:'Einfache Wörter und wenige Einstellungen. Fachbegriffe werden umschrieben.',fort:'Alle Funktionen. Fachbegriffe findest du unter „Begriffe erklärt“.',pro:'Alles, dazu Bäckerprozente, Gärformel und Skalieren eigener Rezepte.'};
+function applyLevel(){document.documentElement.setAttribute('data-lvl',LEVEL||'fort')}
+function setLevel(l){LEVEL=l;LS.set('sb_level',l);applyLevel();$('onb').hidden=true;applyLang();refreshAll()}
+const applyBig=()=>document.documentElement.setAttribute('data-big',LS.get('sb_big',0)?'1':'0');
+const GLOSS=[
+  ['Starter (Anstellgut)','Lebendige Mischung aus Mehl und Wasser mit wilden Hefen und Milchsäurebakterien. Sie lässt das Brot aufgehen und gibt den Geschmack.'],
+  ['Peak','Der Moment, in dem der Starter am höchsten steht. Dann ist er am aktivsten und gut zum Backen.'],
+  ['Autolyse','Mehl und Wasser ruhen zuerst allein, ohne Starter und Salz. Das macht den Teig geschmeidiger und leichter zu formen.'],
+  ['Hydration','Wie viel Wasser im Teig ist, in Prozent vom Mehl. Mehr Wasser gibt einen feuchteren, luftigeren Teig, der aber klebriger ist.'],
+  ['Dehnen und Falten','Statt zu kneten ziehst du den Teig in Abständen kurz in die Länge und faltest ihn ein. So entsteht Struktur.'],
+  ['Stückgare','Die letzte Gehzeit des geformten Brotes, bevor es in den Ofen kommt. Über Nacht im Kühlschrank bringt mehr Geschmack.'],
+  ['Gärkorb','Eine Form oder Schüssel mit Tuch, in der das geformte Brot geht und seine Form behält.'],
+  ['Krume','Das Innere des Brotes.'],
+  ['Bäckerprozente','Alle Zutaten als Prozent vom Mehlgewicht. Das Mehl ist immer 100 %.']];
+const ALG={weizen:['Gluten'],dinkel:['Gluten'],roggen:['Gluten'],vollkorn:['Gluten'],koerner:['Gluten','Saaten (Sonnenblumen, Lein, Kürbis)'],mischbrot:['Gluten'],walnuss:['Gluten','Walnüsse'],kartoffel:['Gluten'],sonnenblumen:['Gluten','Sonnenblumenkerne'],ciabatta:['Gluten'],baguette:['Gluten'],broetchen:['Gluten','Milch (Butter)'],focaccia:['Gluten']};
+function allergyText(b){
+  if(b.slug==='glutenfrei')return tr('Glutenfrei gedacht. Bei Zöliakie auf zertifiziert glutenfreie Zutaten, einen glutenfreien Starter und saubere Geräte achten. Das ersetzt keine ärztliche Beratung.');
+  const x=ALG[b.slug];return x?tr('Enthält: {0}.',x.map(y=>tr(y)).join(', ')):'';
+}
+// Menge am Zeilenanfang eines eigenen Rezepts umrechnen (z. B. "500 g Mehl" mit Faktor 1,5)
+function scaleLine(l,k){
+  if(k===1)return l;
+  return l.replace(/^(\s*)(\d+(?:[.,]\d+)?)(?:(\s*(?:-|–|bis)\s*)(\d+(?:[.,]\d+)?))?/,(m,sp,x,mid,y)=>{
+    const f=v=>{const n=parseFloat(String(v).replace(',','.'))*k;return dec(n<10?+n.toFixed(1):Math.round(n))};
+    return sp+f(x)+(mid?mid+f(y):'');
+  });
+}
+const lvNote=()=>LEVEL==='neu'?(LANG==='de'?' Erkläre einfach und ohne Fachbegriffe, wie für einen Anfänger, in 2 bis 4 Sätzen.':' Explain simply and without jargon, as for a beginner, in 2 to 4 sentences.')
+  :LEVEL==='pro'?(LANG==='de'?' Antworte fachlich und knapp, nenne wenn passend Bäckerprozente, Temperaturen und Zeiten.':' Answer technically and briefly, give baker percentages, temperatures and times where fitting.'):'';
+function settingsUI2(){
+  document.querySelectorAll('#lvSeg button').forEach(b=>b.classList.toggle('on',b.dataset.lv===LEVEL));
+  document.querySelectorAll('#bigSeg button').forEach(b=>b.classList.toggle('on',(+b.dataset.b)===(LS.get('sb_big',0)?1:0)));
+  document.querySelectorAll('#unitSeg button').forEach(b=>b.classList.toggle('on',b.dataset.u===units));
+  document.querySelectorAll('#onbLang button').forEach(b=>b.classList.toggle('on',b.dataset.l===LANG));
+  $('lvInfo').textContent=tr(LV_INFO[LEVEL||'fort']);
+  $('gloss').innerHTML=GLOSS.map(([h,p])=>`<h3>${esc(tr(h))}</h3><p>${esc(tr(p))}</p>`).join('');
+  $('qLbl').textContent=tr('Gärung verdoppelt ihr Tempo alle ({0})',tUnit());
+  if(document.activeElement!==$('qTen'))$('qTen').value=dec(Math.round(LS.get('sb_q',8)*(US()?1.8:1)*10)/10);
+  $('gNote').textContent=tr('Richtwerte bei {0} bis {1}. Wie lange dein Starter wirklich braucht, hängt von Mehl, Temperatur und Aktivität ab. Über das Verhältnis steuerst du die Reifezeit.',tStr(21),tStr(22));
+  tempLabels();
+}
+document.querySelectorAll('#lvSeg button').forEach(b=>b.onclick=()=>setLevel(b.dataset.lv));
+document.querySelectorAll('.lv').forEach(b=>b.onclick=()=>setLevel(b.dataset.lv));
+document.querySelectorAll('#onbLang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+document.querySelectorAll('#bigSeg button').forEach(b=>b.onclick=()=>{LS.set('sb_big',+b.dataset.b);applyBig();settingsUI2()});
+document.querySelectorAll('#unitSeg button').forEach(b=>b.onclick=()=>{units=b.dataset.u;LS.set('sb_units',units);refreshAll()});
+$('qTen').addEventListener('change',()=>{const v=+String($('qTen').value).replace(',','.');if(v>0){LS.set('sb_q',Math.min(12,Math.max(5,US()?v/1.8:v)));setTemp(tShow(temp));refreshAll()}});
+
+/* ---------- Coach: Schnellfragen und Werkzeuge ---------- */
+const QS=[
+  [/Starter füttern/,['Wann ist mein Starter bereit?','Mein Starter blubbert kaum. Was tun?','Welches Mehl nehme ich zum Füttern?']],
+  [/Mehl und Wasser mischen|Starter und Salz|anrühren|anmischen/,['Warum ist mein Teig so klebrig?','Wie lange soll ich den Teig verarbeiten?','Kann ich den Teig mit der Maschine kneten?']],
+  [/Falten|Teig ruhen/,['Woran erkenne ich, dass der Teig reif ist?','Der Teig geht kaum auf. Was tun?','Wie dehne und falte ich richtig?']],
+  [/formen|Stückgare|In die Form/,['Wie forme ich den Teig richtig?','Woran erkenne ich, dass die Gehzeit fertig ist?','Kann ich die Gehzeit im Kühlschrank verlängern?']],
+  [/Ofen|Backen/,['Woran sehe ich, dass das Brot durch ist?','Die Kruste wird zu dunkel. Was tun?','Ich habe keinen Gusseisentopf. Was nun?']],
+  [/Auskühlen/,['Warum muss das Brot auskühlen?','Wie bewahre ich das Brot auf?','Wie friere ich Brot am besten ein?']]];
+const QS0=['Welches Brot passt für den Anfang?','Wie füttere ich meinen Starter richtig?','Mein Brot wird zu flach. Woran liegt das?'];
+const QF=['Erklär das bitte einfacher.','Was kann ich dagegen tun?','Woran erkenne ich das beim nächsten Mal?'];
+function coachChips(){
+  const b=pb(),last=chat[chat.length-1],after=last&&last.r==='a'&&!last.e&&last.t!=='…';
+  let qs=QS0;if(b){const m=QS.find(([re])=>re.test(b.bread_steps[plan.idx].title));qs=m?m[1]:QS0}
+  if(after)qs=QF;
+  const tools=[['Foto prüfen','photo'],...(chat.length?[['Chat leeren','clear']]:[])];
+  $('qrow').innerHTML=qs.map(q=>`<button type="button" data-q="${esc(q)}">${esc(tr(q))}</button>`).join('')+tools.map(([t,k])=>`<button type="button" class="tool" data-t="${k}">${esc(tr(t))}</button>`).join('');
+  $('qrow').querySelectorAll('[data-q]').forEach(x=>x.onclick=()=>{if($('chatSend').disabled)return;$('chatIn').value=tr(x.dataset.q);send()});
+  $('qrow').querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>{
+    if(x.dataset.t==='photo'){$('chatIn').value=tr('Was siehst du auf dem Foto? Was sollte ich tun?');$('imgIn').click()}
+    else if(confirm(tr('Chat wirklich leeren?'))){chat=[];LS.set('sb_chat',chat);drawChat()}
+  });
+}
+
+/* ---------- Bedienhilfen: Zustand für Screenreader ---------- */
+function syncAria(){
+  document.querySelectorAll('.seg button,.chips button,.days button,.stars button').forEach(b=>{const v=String(b.classList.contains('on'));if(b.getAttribute('aria-pressed')!==v)b.setAttribute('aria-pressed',v)});
+  document.querySelectorAll('nav button').forEach(b=>{if(b.classList.contains('on'))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
+}
+new MutationObserver(()=>requestAnimationFrame(syncAria)).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
 
 /* ---------- Optionen: Sprache, Darstellung, Daten, Datenschutz ---------- */
 const theme=()=>LS.get('sb_theme','auto');
@@ -772,13 +901,13 @@ $('dataDel').onclick=async()=>{
 };
 
 /* ---------- Sprache neu zeichnen ---------- */
-function syncTempUI(){document.querySelectorAll('.tempIn').forEach(i=>{if(document.activeElement!==i)i.value=temp});document.querySelectorAll('.tempNote').forEach(e=>e.textContent=tempNote())}
+function syncTempUI(){tempLabels();document.querySelectorAll('.tempIn').forEach(i=>{if(document.activeElement!==i)i.value=tShow(temp)});document.querySelectorAll('.tempNote').forEach(e=>e.textContent=tempNote())}
 function refreshAll(){
-  fillFeedRatio();syncTempUI();fillFlours();waterGuide();feedGuide();fillSelects();modeLabels();preview();
-  render();drawPet();drawCk();drawChat();keyState();notifState();updateHints();settingsUI();drawJournal();
+  applyLevel();settingsUI2();fillFeedRatio();syncTempUI();fillFlours();waterGuide();feedGuide();fillSelects();modeLabels();preview();
+  render();drawPet();drawCk();drawChat();keyState();notifState();updateHints();settingsUI();drawJournal();coachChips();syncAria();
 }
 
 /* ---------- Start ---------- */
-quietUI();applyTheme();fillFeedRatio();syncTempUI();fillFlours();$('wFlour').value=1;waterGuide();feedGuide();
-keyState();drawChat();drawCk();drawPet();updateHints();settingsUI();notifState();drawJournal();loadBreads();
+applyLevel();applyBig();quietUI();applyTheme();fillFeedRatio();syncTempUI();fillFlours();$('wFlour').value=1;waterGuide();feedGuide();
+keyState();drawChat();drawCk();drawPet();updateHints();settingsUI();notifState();drawJournal();settingsUI2();syncAria();if(!LEVEL)$('onb').hidden=false;loadBreads();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
